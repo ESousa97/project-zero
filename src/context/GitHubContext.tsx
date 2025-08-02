@@ -1,62 +1,13 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+// src/context/GitHubContext.tsx
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import { GitHubAPI } from './modules/GitHubAPI';
+import { useGitHubState } from './modules/GitHubState';
+import { GitHubServices } from './modules/GitHubServices';
 import type {
   Repository,
   Commit,
   User,
-  Event,
-  Organization,
 } from '../types/github';
-
-interface GitHubContextType {
-  token: string;
-  setToken: (token: string) => void;
-  repositories: Repository[];
-  commits: Commit[];
-  user: User | null;
-
-  loading: boolean;
-  loadingCommits: boolean;
-  loadingRepositories: boolean;
-  loadingUser: boolean;
-
-  error: string;
-  commitError: string;
-  repositoryError: string;
-  userError: string;
-
-  branches: string[];
-  collaborators: string[];
-  languages: string[];
-  tags: string[];
-  releases: unknown[];
-  issues: unknown[];
-  pullRequests: unknown[];
-
-  fetchRepositories: () => Promise<void>;
-  fetchCommits: (repo: string, branch?: string, options?: CommitFetchOptions) => Promise<void>;
-  fetchUser: () => Promise<void>;
-  fetchBranches: (repo: string) => Promise<void>;
-  fetchCollaborators: (repo: string) => Promise<void>;
-  fetchLanguages: (repo: string) => Promise<void>;
-  fetchTags: (repo: string) => Promise<void>;
-  fetchReleases: (repo: string) => Promise<void>;
-  fetchIssues: (repo: string, state?: 'open' | 'closed' | 'all') => Promise<void>;
-  fetchPullRequests: (repo: string, state?: 'open' | 'closed' | 'all') => Promise<void>;
-
-  fetchCommitDetails: (repo: string, sha: string) => Promise<Commit | null>;
-  fetchRepositoryStats: (repo: string) => Promise<unknown | null>;
-  fetchContributorStats: (repo: string) => Promise<unknown[]>;
-  fetchCodeFrequency: (repo: string) => Promise<unknown[]>;
-  fetchPunchCard: (repo: string) => Promise<unknown[]>;
-
-  clearError: () => void;
-  clearAllErrors: () => void;
-  searchRepositories: (query: string, options?: SearchOptions) => Promise<Repository[]>;
-  getRepositoryContents: (repo: string, path?: string, ref?: string) => Promise<unknown[]>;
-
-  clearCache: () => void;
-  refreshAll: () => Promise<void>;
-}
 
 interface CommitFetchOptions {
   since?: string;
@@ -74,507 +25,268 @@ interface SearchOptions {
   page?: number;
 }
 
-// Cache duration definido fora para evitar warning no useCallback
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+interface GitHubContextType {
+  // Token management
+  token: string;
+  setToken: (token: string) => void;
+
+  // Data
+  repositories: Repository[];
+  commits: Commit[];
+  user: User | null;
+  branches: string[];
+  collaborators: string[];
+  languages: string[];
+  tags: string[];
+  releases: unknown[];
+  issues: unknown[];
+  pullRequests: unknown[];
+
+  // Loading states
+  loading: boolean;
+  loadingCommits: boolean;
+  loadingRepositories: boolean;
+  loadingUser: boolean;
+
+  // Error states
+  error: string;
+  commitError: string;
+  repositoryError: string;
+  userError: string;
+
+  // Service methods
+  fetchRepositories: () => Promise<void>;
+  fetchCommits: (repo: string, branch?: string, options?: CommitFetchOptions) => Promise<void>;
+  fetchUser: () => Promise<void>;
+  fetchBranches: (repo: string) => Promise<void>;
+  fetchCollaborators: (repo: string) => Promise<void>;
+  fetchLanguages: (repo: string) => Promise<void>;
+  fetchTags: (repo: string) => Promise<void>;
+  fetchReleases: (repo: string) => Promise<void>;
+  fetchIssues: (repo: string, state?: 'open' | 'closed' | 'all') => Promise<void>;
+  fetchPullRequests: (repo: string, state?: 'open' | 'closed' | 'all') => Promise<void>;
+
+  // Advanced methods
+  fetchCommitDetails: (repo: string, sha: string) => Promise<Commit | null>;
+  fetchRepositoryStats: (repo: string) => Promise<unknown | null>;
+  fetchContributorStats: (repo: string) => Promise<unknown[]>;
+  fetchCodeFrequency: (repo: string) => Promise<unknown[]>;
+  fetchPunchCard: (repo: string) => Promise<unknown[]>;
+
+  // Search and utility methods
+  searchRepositories: (query: string, options?: SearchOptions) => Promise<Repository[]>;
+  getRepositoryContents: (repo: string, path?: string, ref?: string) => Promise<unknown[]>;
+
+  // Management methods
+  clearError: () => void;
+  clearAllErrors: () => void;
+  clearCache: () => void;
+  refreshAll: () => Promise<void>;
+}
 
 const GitHubContext = createContext<GitHubContextType | undefined>(undefined);
 
 export const useGitHub = (): GitHubContextType => {
   const context = useContext(GitHubContext);
-  if (!context) throw new Error('useGitHub must be used within a GitHubProvider');
+  if (!context) {
+    throw new Error('useGitHub must be used within a GitHubProvider');
+  }
   return context;
 };
 
 export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Estados principais
-  const [token, setToken] = useState<string>(() => localStorage.getItem('github_token') || '');
-  const [repositories, setRepositories] = useState<Repository[]>([]);
-  const [commits, setCommits] = useState<Commit[]>([]);
-  const [user, setUser] = useState<User | null>(null);
-
-  // Dados aprimorados
-  const [branches, setBranches] = useState<string[]>([]);
-  const [collaborators, setCollaborators] = useState<string[]>([]);
-  const [languages, setLanguages] = useState<string[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
-  const [releases, setReleases] = useState<unknown[]>([]);
-  const [issues, setIssues] = useState<unknown[]>([]);
-  const [pullRequests, setPullRequests] = useState<unknown[]>([]);
-
-  // Estados de loading
-  const [loading, setLoading] = useState(false);
-  const [loadingCommits, setLoadingCommits] = useState(false);
-  const [loadingRepositories, setLoadingRepositories] = useState(false);
-  const [loadingUser, setLoadingUser] = useState(false);
-
-  // Estados de erro
-  const [error, setError] = useState('');
-  const [commitError, setCommitError] = useState('');
-  const [repositoryError, setRepositoryError] = useState('');
-  const [userError, setUserError] = useState('');
-
-  // Cache para evitar chamadas duplicadas
-  const [cache, setCache] = useState<Map<string, { data: unknown; timestamp: number }>>(new Map());
-
-  // Funções utilitárias para limpar erros
-  const clearError = useCallback(() => setError(''), []);
-  const clearAllErrors = useCallback(() => {
-    setError('');
-    setCommitError('');
-    setRepositoryError('');
-    setUserError('');
-  }, []);
-
-  // Atualiza token e limpa dados
-  const handleSetToken = useCallback(
-    (newToken: string) => {
-      setToken(newToken);
-      localStorage.setItem('github_token', newToken);
-      setRepositories([]);
-      setCommits([]);
-      setUser(null);
-      clearAllErrors();
-      setCache(new Map());
-    },
-    [clearAllErrors]
+  // Token state
+  const [token, setTokenState] = useState<string>(() => 
+    localStorage.getItem('github_token') || ''
   );
 
-  // Requisição genérica com cache
-  const makeRequest = useCallback(
-    async (url: string, useCache = true): Promise<unknown> => {
-      if (!token) throw new Error('Token do GitHub é obrigatório');
+  // State hook modularizado
+  const state = useGitHubState();
 
-      if (useCache) {
-        const cached = cache.get(url);
-        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-          return cached.data;
-        }
-      }
+  // API instance - criada apenas quando token existe
+  const api = useMemo(() => {
+    if (!token) return null;
+    return new GitHubAPI(token);
+  }, [token]);
 
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `token ${token}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
-      });
+  // Services instance - criada apenas quando API e state existem
+  const services = useMemo(() => {
+    if (!api) return null;
+    return new GitHubServices(api, state);
+  }, [api, state]);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erro na API: ${response.status} - ${response.statusText}. ${errorText}`);
-      }
+  // Token setter que limpa dados e atualiza localStorage
+  const setToken = useCallback((newToken: string) => {
+    setTokenState(newToken);
+    localStorage.setItem('github_token', newToken);
+    
+    if (services) {
+      services.updateToken(newToken);
+    } else {
+      // Se não temos services ainda, limpa dados diretamente
+      state.clearAllData();
+      state.clearAllErrors();
+    }
+  }, [services, state]);
 
-      const data = await response.json();
-
-      if (useCache) {
-        setCache((prev) => new Map(prev.set(url, { data, timestamp: Date.now() })));
-      }
-
-      return data;
-    },
-    [token, cache]
-  );
-
-  // Requisição paginada para obter todos os dados (maxPages limita para evitar loop infinito)
-  const makePaginatedRequest = useCallback(
-    async (baseUrl: string, maxPages = 20): Promise<unknown[]> => {
-      let allData: unknown[] = [];
-      let page = 1;
-      let hasMorePages = true;
-
-      while (hasMorePages && page <= maxPages) {
-        const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}per_page=100&page=${page}`;
-
-        try {
-          const data = await makeRequest(url);
-          if (Array.isArray(data)) {
-            allData = allData.concat(data);
-            hasMorePages = data.length === 100;
-          } else {
-            hasMorePages = false;
-          }
-          page++;
-        } catch (_err) {
-          console.error(`Erro ao buscar página ${page}:`, _err);
-          hasMorePages = false;
-        }
-      }
-      return allData;
-    },
-    [makeRequest]
-  );
-
-  // Busca repositórios com enrich nos dados (tipagem corrigida)
+  // Wrapper methods para o services com fallback
   const fetchRepositories = useCallback(async () => {
-    setLoadingRepositories(true);
-    setRepositoryError('');
-    try {
-      const data = await makePaginatedRequest('https://api.github.com/user/repos?sort=updated');
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchRepositories();
+  }, [services]);
 
-      const enrichedRepos = await Promise.all(
-        (data as Repository[]).map(async (repo) => {
-          try {
-            const [languagesData, contributorsData] = await Promise.all([
-              makeRequest(`https://api.github.com/repos/${repo.full_name}/languages`).catch(() => ({})),
-              makeRequest(`https://api.github.com/repos/${repo.full_name}/contributors?per_page=10`).catch(() => []),
-            ]);
-            return {
-              ...repo,
-              languages_data: languagesData as { [key: string]: number },
-              contributors_data: contributorsData as unknown[],
-              contributor_count: (contributorsData as unknown[]).length,
-            };
-          } catch (_err) {
-            console.error(`Erro ao enriquecer repo ${repo.name}:`, _err);
-            return repo;
-          }
-        })
-      );
+  const fetchCommits = useCallback(async (repo: string, branch = 'main', options: CommitFetchOptions = {}) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchCommits(repo, branch, options);
+  }, [services]);
 
-      setRepositories(
-        enrichedRepos.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()) as Repository[]
-      );
-    } catch (err) {
-      setRepositoryError(err instanceof Error ? err.message : 'Erro desconhecido');
-    } finally {
-      setLoadingRepositories(false);
-    }
-  }, [makePaginatedRequest, makeRequest]);
-
-  // Busca commits reais e enriquece com stats
-  const fetchCommits = useCallback(
-    async (repo: string, branch = 'main', options: CommitFetchOptions = {}) => {
-      setLoadingCommits(true);
-      setCommitError('');
-      try {
-        const params = new URLSearchParams({
-          sha: branch,
-          per_page: (options.per_page || 100).toString(),
-          page: (options.page || 1).toString(),
-        });
-
-        if (options.since) params.append('since', options.since);
-        if (options.until) params.append('until', options.until);
-        if (options.author) params.append('author', options.author);
-        if (options.path) params.append('path', options.path);
-
-        const url = `https://api.github.com/repos/${repo}/commits?${params.toString()}`;
-        const data = await makeRequest(url);
-
-        const enrichedCommits = await Promise.all(
-          (data as Commit[]).map(async (commit) => {
-            try {
-              const detailedCommit = await makeRequest(`https://api.github.com/repos/${repo}/commits/${commit.sha}`);
-              return {
-                ...commit,
-                stats: (detailedCommit as Commit).stats,
-                files: (detailedCommit as Commit).files,
-              };
-            } catch (_err) {
-              console.error(`Erro ao enriquecer commit ${commit.sha}:`, _err);
-              return commit;
-            }
-          })
-        );
-
-        setCommits(enrichedCommits);
-      } catch (err) {
-        setCommitError(err instanceof Error ? err.message : 'Erro ao buscar commits');
-      } finally {
-        setLoadingCommits(false);
-      }
-    },
-    [makeRequest]
-  );
-
-  // Busca dados do usuário com casts
   const fetchUser = useCallback(async () => {
-    setLoadingUser(true);
-    setUserError('');
-    try {
-      const userData = await makeRequest('https://api.github.com/user');
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchUser();
+  }, [services]);
 
-      const [eventsData, orgsData, starredData] = await Promise.all([
-        makeRequest(`https://api.github.com/users/${(userData as User).login}/events/public?per_page=10`).catch(() => []),
-        makeRequest('https://api.github.com/user/orgs').catch(() => []),
-        makeRequest('https://api.github.com/user/starred?per_page=10').catch(() => []),
-      ]);
+  const fetchBranches = useCallback(async (repo: string) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchBranches(repo);
+  }, [services]);
 
-      setUser({
-        ...(userData as User),
-        recent_events: eventsData as Event[],
-        organizations: orgsData as Organization[],
-        starred_repos: starredData as Repository[],
-      });
-    } catch (err) {
-      setUserError(err instanceof Error ? err.message : 'Erro ao buscar usuário');
-    } finally {
-      setLoadingUser(false);
-    }
-  }, [makeRequest]);
+  const fetchCollaborators = useCallback(async (repo: string) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchCollaborators(repo);
+  }, [services]);
 
-  // Exemplos de fetch com casts explicitos (outros seguem padrão similar)
-  const fetchBranches = useCallback(
-    async (repo: string) => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/branches`);
-        setBranches((data as { name: string }[]).map((b) => b.name));
-      } catch (_err) {
-        console.error('Erro ao buscar branches:', _err);
-      }
-    },
-    [makeRequest]
-  );
+  const fetchLanguages = useCallback(async (repo: string) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchLanguages(repo);
+  }, [services]);
 
-  const fetchCollaborators = useCallback(
-    async (repo: string) => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/collaborators`);
-        setCollaborators((data as { login: string }[]).map((c) => c.login));
-      } catch (_err) {
-        console.error('Erro ao buscar colaboradores:', _err);
-      }
-    },
-    [makeRequest]
-  );
+  const fetchTags = useCallback(async (repo: string) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchTags(repo);
+  }, [services]);
 
-  const fetchLanguages = useCallback(
-    async (repo: string) => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/languages`);
-        setLanguages(Object.keys(data as { [key: string]: number }));
-      } catch (_err) {
-        console.error('Erro ao buscar linguagens:', _err);
-      }
-    },
-    [makeRequest]
-  );
+  const fetchReleases = useCallback(async (repo: string) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchReleases(repo);
+  }, [services]);
 
-  const fetchTags = useCallback(
-    async (repo: string) => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/tags`);
-        setTags((data as { name: string }[]).map((t) => t.name));
-      } catch (_err) {
-        console.error('Erro ao buscar tags:', _err);
-      }
-    },
-    [makeRequest]
-  );
+  const fetchIssues = useCallback(async (repo: string, issueState: 'open' | 'closed' | 'all' = 'open') => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchIssues(repo, issueState);
+  }, [services]);
 
-  const fetchReleases = useCallback(
-    async (repo: string) => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/releases`);
-        setReleases(data as unknown[]);
-      } catch (_err) {
-        console.error('Erro ao buscar releases:', _err);
-      }
-    },
-    [makeRequest]
-  );
+  const fetchPullRequests = useCallback(async (repo: string, prState: 'open' | 'closed' | 'all' = 'open') => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchPullRequests(repo, prState);
+  }, [services]);
 
-  const fetchIssues = useCallback(
-    async (repo: string, state: 'open' | 'closed' | 'all' = 'open') => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/issues?state=${state}&per_page=100`);
-        setIssues(data as unknown[]);
-      } catch (_err) {
-        console.error('Erro ao buscar issues:', _err);
-      }
-    },
-    [makeRequest]
-  );
+  const fetchCommitDetails = useCallback(async (repo: string, sha: string) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchCommitDetails(repo, sha);
+  }, [services]);
 
-  const fetchPullRequests = useCallback(
-    async (repo: string, state: 'open' | 'closed' | 'all' = 'open') => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/pulls?state=${state}&per_page=100`);
-        setPullRequests(data as unknown[]);
-      } catch (_err) {
-        console.error('Erro ao buscar pull requests:', _err);
-      }
-    },
-    [makeRequest]
-  );
+  const fetchRepositoryStats = useCallback(async (repo: string) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchRepositoryStats(repo);
+  }, [services]);
 
-  // Funções avançadas
-  const fetchCommitDetails = useCallback(
-    async (repo: string, sha: string): Promise<Commit | null> => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/commits/${sha}`);
-        return data as Commit;
-      } catch (_err) {
-        console.error('Erro ao buscar detalhes do commit:', _err);
-        return null;
-      }
-    },
-    [makeRequest]
-  );
+  const fetchContributorStats = useCallback(async (repo: string) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchContributorStats(repo);
+  }, [services]);
 
-  const fetchRepositoryStats = useCallback(
-    async (repo: string) => {
-      try {
-        const [codeFrequency, participation, punchCard] = await Promise.all([
-          makeRequest(`https://api.github.com/repos/${repo}/stats/code_frequency`).catch(() => []),
-          makeRequest(`https://api.github.com/repos/${repo}/stats/participation`).catch(() => ({})),
-          makeRequest(`https://api.github.com/repos/${repo}/stats/punch_card`).catch(() => []),
-        ]);
-        return { code_frequency: codeFrequency, participation, punch_card: punchCard };
-      } catch (_err) {
-        console.error('Erro ao buscar estatísticas do repositório:', _err);
-        return null;
-      }
-    },
-    [makeRequest]
-  );
+  const fetchCodeFrequency = useCallback(async (repo: string) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchCodeFrequency(repo);
+  }, [services]);
 
-  const fetchContributorStats = useCallback(
-    async (repo: string) => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/stats/contributors`);
-        return data as unknown[];
-      } catch (_err) {
-        console.error('Erro ao buscar estatísticas de contribuidores:', _err);
-        return [];
-      }
-    },
-    [makeRequest]
-  );
+  const fetchPunchCard = useCallback(async (repo: string) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.fetchPunchCard(repo);
+  }, [services]);
 
-  const fetchCodeFrequency = useCallback(
-    async (repo: string) => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/stats/code_frequency`);
-        return data as unknown[];
-      } catch (_err) {
-        console.error('Erro ao buscar frequência de código:', _err);
-        return [];
-      }
-    },
-    [makeRequest]
-  );
+  const searchRepositories = useCallback(async (query: string, options: SearchOptions = {}) => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.searchRepositories(query, options);
+  }, [services]);
 
-  const fetchPunchCard = useCallback(
-    async (repo: string) => {
-      try {
-        const data = await makeRequest(`https://api.github.com/repos/${repo}/stats/punch_card`);
-        return data as unknown[];
-      } catch (_err) {
-        console.error('Erro ao buscar punch card:', _err);
-        return [];
-      }
-    },
-    [makeRequest]
-  );
+  const getRepositoryContents = useCallback(async (repo: string, path = '', ref = 'main') => {
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.getRepositoryContents(repo, path, ref);
+  }, [services]);
 
-  // Pesquisa
-  const searchRepositories = useCallback(
-    async (query: string, options: SearchOptions = {}): Promise<Repository[]> => {
-      try {
-        const params = new URLSearchParams({
-          q: query,
-          sort: options.sort || 'stars',
-          order: options.order || 'desc',
-          per_page: (options.per_page || 30).toString(),
-          page: (options.page || 1).toString(),
-        });
-        const data = await makeRequest(`https://api.github.com/search/repositories?${params.toString()}`);
-        return (data as { items?: Repository[] }).items || [];
-      } catch (_err) {
-        console.error('Erro ao buscar repositórios:', _err);
-        return [];
-      }
-    },
-    [makeRequest]
-  );
-
-  // Conteúdo do repositório
-  const getRepositoryContents = useCallback(
-    async (repo: string, path = '', ref = 'main'): Promise<unknown[]> => {
-      try {
-        const params = new URLSearchParams({ ref });
-        const url = `https://api.github.com/repos/${repo}/contents/${path}?${params.toString()}`;
-        const data = await makeRequest(url);
-        return Array.isArray(data) ? data : [data];
-      } catch (_err) {
-        console.error('Erro ao buscar conteúdo do repositório:', _err);
-        return [];
-      }
-    },
-    [makeRequest]
-  );
-
-  // Limpar cache
-  const clearCache = useCallback(() => setCache(new Map()), []);
-
-  // Refresh geral
   const refreshAll = useCallback(async () => {
-    setLoading(true);
-    clearCache();
-    clearAllErrors();
-    try {
-      await Promise.all([fetchUser(), fetchRepositories()]);
-    } catch (_err) {
-      setError('Erro ao atualizar dados');
-    } finally {
-      setLoading(false);
+    if (!services) throw new Error('Token do GitHub é obrigatório');
+    return services.refreshAll();
+  }, [services]);
+
+  const clearCache = useCallback(() => {
+    if (services) {
+      services.clearCache();
     }
-  }, [fetchUser, fetchRepositories, clearCache, clearAllErrors]);
+  }, [services]);
 
-  // Auto limpeza do cache a cada CACHE_DURATION
+  // Atualização automática de loading geral
   useEffect(() => {
+    const isLoading = state.loading.loadingRepositories || 
+                     state.loading.loadingCommits || 
+                     state.loading.loadingUser;
+    state.setLoading(isLoading);
+  }, [state.loading.loadingRepositories, state.loading.loadingCommits, state.loading.loadingUser, state]);
+
+  // Atualização automática de erro geral
+  useEffect(() => {
+    const errors = [
+      state.errors.repositoryError, 
+      state.errors.commitError, 
+      state.errors.userError
+    ].filter(Boolean);
+    
+    state.setError(errors.length > 0 ? errors[0] : '');
+  }, [state.errors.repositoryError, state.errors.commitError, state.errors.userError, state]);
+
+  // Auto-limpeza de cache
+  useEffect(() => {
+    if (!api) return;
+
     const interval = setInterval(() => {
-      setCache((prev) => {
-        const newCache = new Map<string, { data: unknown; timestamp: number }>();
-        const now = Date.now();
-        prev.forEach((value, key) => {
-          if (now - value.timestamp < CACHE_DURATION) {
-            newCache.set(key, value);
-          }
-        });
-        return newCache;
-      });
-    }, CACHE_DURATION);
+      api.cleanExpiredCache();
+    }, 5 * 60 * 1000); // 5 minutos
+
     return () => clearInterval(interval);
-  }, []);
+  }, [api]);
 
-  // Atualiza loading geral
-  useEffect(() => {
-    setLoading(loadingRepositories || loadingCommits || loadingUser);
-  }, [loadingRepositories, loadingCommits, loadingUser]);
-
-  // Atualiza erro geral
-  useEffect(() => {
-    const errors = [repositoryError, commitError, userError].filter(Boolean);
-    setError(errors.length > 0 ? errors[0] : '');
-  }, [repositoryError, commitError, userError]);
-
-  // Valor do contexto
+  // Context value
   const value: GitHubContextType = {
+    // Token management
     token,
-    setToken: handleSetToken,
-    repositories,
-    commits,
-    user,
+    setToken,
 
-    loading,
-    loadingCommits,
-    loadingRepositories,
-    loadingUser,
+    // Data from state
+    repositories: state.data.repositories,
+    commits: state.data.commits,
+    user: state.data.user,
+    branches: state.data.branches,
+    collaborators: state.data.collaborators,
+    languages: state.data.languages,
+    tags: state.data.tags,
+    releases: state.data.releases,
+    issues: state.data.issues,
+    pullRequests: state.data.pullRequests,
 
-    error,
-    commitError,
-    repositoryError,
-    userError,
+    // Loading states
+    loading: state.loading.loading,
+    loadingCommits: state.loading.loadingCommits,
+    loadingRepositories: state.loading.loadingRepositories,
+    loadingUser: state.loading.loadingUser,
 
-    branches,
-    collaborators,
-    languages,
-    tags,
-    releases,
-    issues,
-    pullRequests,
+    // Error states
+    error: state.errors.error,
+    commitError: state.errors.commitError,
+    repositoryError: state.errors.repositoryError,
+    userError: state.errors.userError,
 
+    // Service methods
     fetchRepositories,
     fetchCommits,
     fetchUser,
@@ -586,20 +298,27 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     fetchIssues,
     fetchPullRequests,
 
+    // Advanced methods
     fetchCommitDetails,
     fetchRepositoryStats,
     fetchContributorStats,
     fetchCodeFrequency,
     fetchPunchCard,
 
-    clearError,
-    clearAllErrors,
+    // Search and utility methods
     searchRepositories,
     getRepositoryContents,
 
+    // Management methods
+    clearError: state.clearError,
+    clearAllErrors: state.clearAllErrors,
     clearCache,
     refreshAll,
   };
 
-  return <GitHubContext.Provider value={value}>{children}</GitHubContext.Provider>;
+  return (
+    <GitHubContext.Provider value={value}>
+      {children}
+    </GitHubContext.Provider>
+  );
 };

@@ -1,3 +1,4 @@
+// eslint.config.js - Versão atualizada para corrigir warnings
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
@@ -26,7 +27,11 @@ export default tseslint.config([
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': [
         'warn',
-        { allowConstantExport: true },
+        { 
+          allowConstantExport: true,
+          // Permite exportar hooks e contextos
+          allowExportNames: ['GitHubContext', 'useGitHub', 'GitHubProvider']
+        },
       ],
       // Permitir variáveis não utilizadas se começarem com underscore
       '@typescript-eslint/no-unused-vars': [
@@ -39,11 +44,6 @@ export default tseslint.config([
       ],
       // Permitir any em alguns casos específicos
       '@typescript-eslint/no-explicit-any': 'warn',
-      // Relaxar regras de refresh apenas para exports
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true, allowExportNames: ['GitHubContext'] },
-      ],
     },
   },
 ])
