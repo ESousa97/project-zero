@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { 
   GitBranch, Settings, User, Activity, BarChart3, Search, 
-  GitCommit, Database, Globe, Shield, Zap, Target, Coffee,
-  Bell, Moon, Sun, Github, RefreshCw
+  GitCommit,
+  Bell, Moon, Sun, Github, RefreshCw, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 // Enhanced Components
-import Header from './components/Header';
-import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import RepositoryList from './components/RepositoryList';
 import CommitHistory from './components/CommitHistory';
@@ -47,6 +45,138 @@ interface Notification {
     onClick: () => void;
   };
 }
+
+// Enhanced Sidebar Component
+const Sidebar: React.FC<{
+  menuItems: MenuItem[];
+  currentView: ViewType;
+  onViewChange: (view: ViewType) => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  darkMode: boolean;
+  isOnline: boolean;
+  lastSync: Date;
+}> = ({ 
+  menuItems, 
+  currentView, 
+  onViewChange, 
+  collapsed, 
+  onToggleCollapse, 
+  darkMode,
+  isOnline,
+  lastSync 
+}) => {
+  return (
+    <aside className={`fixed left-0 top-16 h-[calc(100vh-4rem)] transition-all duration-300 z-40 border-r ${
+      collapsed ? 'w-16' : 'w-64'
+    } ${
+      darkMode 
+        ? 'bg-slate-800/95 border-slate-700' 
+        : 'bg-white/95 border-gray-200'
+    } backdrop-blur-sm`}>
+      {/* Toggle Button */}
+      <button
+        onClick={onToggleCollapse}
+        className={`absolute -right-3 top-6 w-6 h-6 border rounded-full flex items-center justify-center transition-all duration-200 ${
+          darkMode 
+            ? 'bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600' 
+            : 'bg-white border-gray-300 text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+        }`}
+      >
+        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+      </button>
+
+      {/* Navigation */}
+      <nav className="p-4 space-y-2">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = currentView === item.id;
+          
+          return (
+            <div key={item.id} className="relative group">
+              <button
+                onClick={() => onViewChange(item.id)}
+                className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg transition-all duration-200 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                    : darkMode 
+                      ? 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+                disabled={item.premium}
+              >
+                <Icon className={`w-5 h-5 ${
+                  isActive 
+                    ? 'text-white' 
+                    : darkMode 
+                      ? 'text-slate-400 group-hover:text-white' 
+                      : 'text-gray-500 group-hover:text-gray-700'
+                }`} />
+                {!collapsed && (
+                  <>
+                    <span className="font-medium flex-1 text-left">{item.label}</span>
+                    {item.badge && (
+                      <span className={`px-2 py-1 text-xs font-bold rounded-full ${
+                        isActive 
+                          ? 'bg-white/20 text-white' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {item.badge}
+                      </span>
+                    )}
+                    {item.premium && (
+                      <span className="px-2 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white">
+                        PRO
+                      </span>
+                    )}
+                  </>
+                )}
+              </button>
+              
+              {/* Tooltip for collapsed state */}
+              {collapsed && (
+                <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                  {item.label}
+                  {item.description && (
+                    <div className="text-xs text-gray-300 mt-1">{item.description}</div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Status Section */}
+      {!collapsed && (
+        <div className="absolute bottom-4 left-4 right-4">
+          <div className={`rounded-lg p-3 border ${
+            darkMode 
+              ? 'bg-slate-700/50 border-slate-600' 
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-center space-x-2 mb-2">
+              <div className={`w-2 h-2 rounded-full animate-pulse ${
+                isOnline ? 'bg-green-500' : 'bg-red-500'
+              }`}></div>
+              <span className={`text-xs font-medium ${
+                darkMode ? 'text-slate-300' : 'text-gray-700'
+              }`}>
+                {isOnline ? 'GitHub Conectado' : 'Offline'}
+              </span>
+            </div>
+            <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>
+              Última sync: {lastSync.toLocaleTimeString('pt-BR', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </p>
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+};
 
 const AppContent: React.FC = () => {
   // Enhanced state management
@@ -115,16 +245,6 @@ const AppContent: React.FC = () => {
   // Handle view changes with analytics
   const handleViewChange = (view: ViewType) => {
     setCurrentView(view);
-    
-    // Add navigation analytics
-    if (typeof gtag !== 'undefined') {
-      gtag('event', 'page_view', {
-        page_title: `GitVision - ${view}`,
-        page_location: window.location.href
-      });
-    }
-    
-    // Clear any view-specific errors
     clearAllErrors();
   };
 
@@ -577,138 +697,6 @@ const AppContent: React.FC = () => {
         </div>
       )}
     </div>
-  );
-};
-
-// Enhanced Sidebar Component
-const Sidebar: React.FC<{
-  menuItems: MenuItem[];
-  currentView: ViewType;
-  onViewChange: (view: ViewType) => void;
-  collapsed: boolean;
-  onToggleCollapse: () => void;
-  darkMode: boolean;
-  isOnline: boolean;
-  lastSync: Date;
-}> = ({ 
-  menuItems, 
-  currentView, 
-  onViewChange, 
-  collapsed, 
-  onToggleCollapse, 
-  darkMode,
-  isOnline,
-  lastSync 
-}) => {
-  return (
-    <aside className={`fixed left-0 top-16 h-[calc(100vh-4rem)] transition-all duration-300 z-40 border-r ${
-      collapsed ? 'w-16' : 'w-64'
-    } ${
-      darkMode 
-        ? 'bg-slate-800/95 border-slate-700' 
-        : 'bg-white/95 border-gray-200'
-    } backdrop-blur-sm`}>
-      {/* Navigation */}
-      <nav className="p-4 space-y-2">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentView === item.id;
-          
-          return (
-            <div key={item.id} className="relative group">
-              <button
-                onClick={() => onViewChange(item.id)}
-                className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg transition-all duration-200 ${
-                  isActive
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                    : darkMode 
-                      ? 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-                disabled={item.premium}
-              >
-                <Icon className={`w-5 h-5 ${
-                  isActive 
-                    ? 'text-white' 
-                    : darkMode 
-                      ? 'text-slate-400 group-hover:text-white' 
-                      : 'text-gray-500 group-hover:text-gray-700'
-                }`} />
-                {!collapsed && (
-                  <>
-                    <span className="font-medium flex-1 text-left">{item.label}</span>
-                    {item.badge && (
-                      <span className={`px-2 py-1 text-xs font-bold rounded-full ${
-                        isActive 
-                          ? 'bg-white/20 text-white' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {item.badge}
-                      </span>
-                    )}
-                    {item.premium && (
-                      <span className="px-2 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white">
-                        PRO
-                      </span>
-                    )}
-                  </>
-                )}
-              </button>
-              
-              {/* Tooltip for collapsed state */}
-              {collapsed && (
-                <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                  {item.label}
-                  {item.description && (
-                    <div className="text-xs text-gray-300 mt-1">{item.description}</div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </nav>
-
-      {/* Status Section */}
-      {!collapsed && (
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className={`rounded-lg p-3 border ${
-            darkMode 
-              ? 'bg-slate-700/50 border-slate-600' 
-              : 'bg-gray-50 border-gray-200'
-          }`}>
-            <div className="flex items-center space-x-2 mb-2">
-              <div className={`w-2 h-2 rounded-full animate-pulse ${
-                isOnline ? 'bg-green-500' : 'bg-red-500'
-              }`}></div>
-              <span className={`text-xs font-medium ${
-                darkMode ? 'text-slate-300' : 'text-gray-700'
-              }`}>
-                {isOnline ? 'GitHub Conectado' : 'Offline'}
-              </span>
-            </div>
-            <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>
-              Última sync: {lastSync.toLocaleTimeString('pt-BR', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Collapse Toggle */}
-      <button
-        onClick={onToggleCollapse}
-        className={`absolute -right-3 top-6 w-6 h-6 border rounded-full flex items-center justify-center transition-all duration-200 ${
-          darkMode 
-            ? 'bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600' 
-            : 'bg-white border-gray-300 text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-        }`}
-      >
-        {collapsed ? '→' : '←'}
-      </button>
-    </aside>
   );
 };
 

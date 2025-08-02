@@ -11,10 +11,12 @@ import {
 } from 'recharts';
 import { useGitHub } from '../context/GitHubContext';
 
+// Tipos para ordenação, filtro e visualização
 type SortBy = 'updated' | 'created' | 'name' | 'stars' | 'forks' | 'size' | 'issues';
 type FilterBy = 'all' | 'public' | 'private' | 'archived' | 'template';
 type ViewMode = 'grid' | 'list' | 'analytics' | 'comparison';
 
+// Interface para métricas dos repositórios
 interface RepositoryMetrics {
   id: number;
   name: string;
@@ -24,7 +26,6 @@ interface RepositoryMetrics {
   issues: number;
   size: number;
   language: string | null;
-  created: string;
   updated: string;
   activity: number;
   popularity: number;
@@ -32,6 +33,7 @@ interface RepositoryMetrics {
   health: number;
 }
 
+// Interface para métricas de linguagem
 interface LanguageMetrics {
   language: string;
   count: number;
@@ -42,6 +44,7 @@ interface LanguageMetrics {
   percentage: number;
 }
 
+// Interface para métricas de atividade mensal
 interface ActivityMetrics {
   date: string;
   created: number;
@@ -50,9 +53,10 @@ interface ActivityMetrics {
 }
 
 const RepositoryList: React.FC = () => {
+  // Contexto com dados de repositórios e funções
   const { repositories, loading, fetchRepositories } = useGitHub();
   
-  // Estados do componente
+  // Estados locais para filtros, buscas, ordenação, visualização e seleção
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('updated');
   const [filterBy, setFilterBy] = useState<FilterBy>('all');
@@ -62,20 +66,21 @@ const RepositoryList: React.FC = () => {
   const [selectedRepos, setSelectedRepos] = useState<number[]>([]);
   const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter' | 'year' | 'all'>('all');
 
+  // Busca repositórios se ainda não estiverem carregados
   useEffect(() => {
     if (repositories.length === 0) {
       fetchRepositories();
     }
   }, [repositories.length, fetchRepositories]);
 
-  // Métricas calculadas para repositórios
+  // Calcula métricas principais para cada repositório
   const repositoryMetrics: RepositoryMetrics[] = useMemo(() => {
     const now = new Date();
     return repositories.map(repo => {
-      const created = new Date(repo.created_at);
       const updated = new Date(repo.updated_at);
-      
       const daysSinceUpdate = (now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24);
+
+      // Cálculo simples de atividade, popularidade, engajamento e saúde
       const activity = Math.max(0, 100 - daysSinceUpdate * 2);
       const popularity = Math.min(100, (repo.stargazers_count + repo.forks_count) * 2);
       const engagement = repo.stargazers_count > 0 
@@ -92,29 +97,27 @@ const RepositoryList: React.FC = () => {
         issues: repo.open_issues_count,
         size: repo.size,
         language: repo.language,
-        created: repo.created_at,
         updated: repo.updated_at,
         activity,
         popularity,
         engagement,
-        health
+        health,
       };
     });
   }, [repositories]);
 
-  // Métricas de linguagens
+  // Calcula métricas agregadas por linguagem
   const languageMetrics: LanguageMetrics[] = useMemo(() => {
-    const languageMap = new Map<string, { count: number; totalStars: number; totalSize: number; repos: string[] }>();
+    const languageMap = new Map<string, { count: number; totalStars: number; totalSize: number }>();
     
     repositories.forEach(repo => {
       const lang = repo.language || 'Unknown';
-      const current = languageMap.get(lang) || { count: 0, totalStars: 0, totalSize: 0, repos: [] };
+      const current = languageMap.get(lang) || { count: 0, totalStars: 0, totalSize: 0 };
       
       languageMap.set(lang, {
         count: current.count + 1,
         totalStars: current.totalStars + repo.stargazers_count,
         totalSize: current.totalSize + repo.size,
-        repos: [...current.repos, repo.name]
       });
     });
 
@@ -127,12 +130,12 @@ const RepositoryList: React.FC = () => {
         totalSize: data.totalSize,
         avgStars: data.totalStars / data.count,
         avgSize: data.totalSize / data.count,
-        percentage: (data.count / total) * 100
+        percentage: (data.count / total) * 100,
       }))
       .sort((a, b) => b.count - a.count);
   }, [repositories]);
 
-  // Métricas de atividade ao longo do tempo
+  // Métricas de atividade mensal (criação e atualização)
   const activityMetrics: ActivityMetrics[] = useMemo(() => {
     const monthlyData = new Map<string, { created: number; updated: number }>();
     
@@ -140,11 +143,10 @@ const RepositoryList: React.FC = () => {
       const createdMonth = new Date(repo.created_at).toISOString().slice(0, 7);
       const updatedMonth = new Date(repo.updated_at).toISOString().slice(0, 7);
       
-      // Repositórios criados
+      // Incrementa contadores de criação e atualização por mês
       const createdData = monthlyData.get(createdMonth) || { created: 0, updated: 0 };
       monthlyData.set(createdMonth, { ...createdData, created: createdData.created + 1 });
       
-      // Repositórios atualizados
       const updatedData = monthlyData.get(updatedMonth) || { created: 0, updated: 0 };
       monthlyData.set(updatedMonth, { ...updatedData, updated: updatedData.updated + 1 });
     });
@@ -154,13 +156,13 @@ const RepositoryList: React.FC = () => {
         date,
         created: data.created,
         updated: data.updated,
-        totalRepos: repositories.length
+        totalRepos: repositories.length,
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-12);
   }, [repositories]);
 
-  // Filtrar e ordenar repositórios
+  // Filtra e ordena os repositórios conforme estado atual
   const filteredRepositories = useMemo(() => {
     return repositories.filter(repo => {
       const searchTermLower = searchTerm.toLowerCase();
@@ -217,12 +219,12 @@ const RepositoryList: React.FC = () => {
     });
   }, [repositories, searchTerm, sortBy, filterBy, languageFilter, dateRange]);
 
-  // Linguagens únicas para filtro
+  // Extrai linguagens únicas para uso no filtro
   const languages = useMemo(() => {
     return Array.from(new Set(repositories.map(r => r.language).filter(Boolean))).sort();
   }, [repositories]);
 
-  // Estatísticas gerais
+  // Estatísticas agregadas para o painel superior
   const stats = useMemo(() => {
     const totalStars = repositories.reduce((sum, repo) => sum + repo.stargazers_count, 0);
     const totalForks = repositories.reduce((sum, repo) => sum + repo.forks_count, 0);
@@ -250,21 +252,22 @@ const RepositoryList: React.FC = () => {
       archivedRepos,
       templateRepos,
       activeRepos,
-      inactiveRepos: repositories.length - activeRepos
+      inactiveRepos: repositories.length - activeRepos,
     };
   }, [repositories]);
 
-  // Utilitários para exibição
+  // Formata datas para exibição amigável
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString('pt-BR', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
+  // Retorna texto amigável para tempo desde data informada
   const getTimeAgo = (dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
@@ -278,6 +281,7 @@ const RepositoryList: React.FC = () => {
     return `${Math.floor(diffInSeconds / 31536000)} anos atrás`;
   };
 
+  // Mapear linguagens para classes de cores (Tailwind)
   const getLanguageColor = (language: string | null) => {
     const colors: { [key: string]: string } = {
       'JavaScript': 'bg-yellow-400',
@@ -296,11 +300,12 @@ const RepositoryList: React.FC = () => {
       'HTML': 'bg-orange-400',
       'CSS': 'bg-blue-500',
       'Vue': 'bg-green-600',
-      'React': 'bg-blue-400'
+      'React': 'bg-blue-400',
     };
     return colors[language || ''] || 'bg-gray-500';
   };
 
+  // Cores para indicar saúde do repositório
   const getHealthColor = (health: number) => {
     if (health >= 80) return 'text-green-400';
     if (health >= 60) return 'text-yellow-400';
@@ -308,12 +313,14 @@ const RepositoryList: React.FC = () => {
     return 'text-red-400';
   };
 
+  // Ícones para indicar saúde
   const getHealthIcon = (health: number) => {
     if (health >= 80) return CheckCircle;
     if (health >= 60) return Clock;
     return AlertCircle;
   };
 
+  // Seleciona/deseleciona repositórios na lista para comparação
   const toggleRepoSelection = (repoId: number) => {
     setSelectedRepos(prev => 
       prev.includes(repoId) 
@@ -322,11 +329,13 @@ const RepositoryList: React.FC = () => {
     );
   };
 
+  // Paleta de cores usada em gráficos
   const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'];
 
+  // JSX do componente
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Cabeçalho */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
@@ -338,8 +347,9 @@ const RepositoryList: React.FC = () => {
           </p>
         </div>
         
+        {/* Controles de visualização e atualização */}
         <div className="flex items-center gap-4">
-          {/* View Mode Toggle */}
+          {/* Botões para alternar modo de visualização */}
           <div className="flex bg-slate-800 rounded-lg p-1">
             {(['grid', 'list', 'analytics', 'comparison'] as const).map((mode) => (
               <button
@@ -361,6 +371,7 @@ const RepositoryList: React.FC = () => {
             ))}
           </div>
 
+          {/* Botão para atualizar lista */}
           <button
             onClick={fetchRepositories}
             disabled={loading}
@@ -373,7 +384,7 @@ const RepositoryList: React.FC = () => {
         </div>
       </div>
 
-      {/* Estatísticas */}
+      {/* Estatísticas resumidas */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {/* Total */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">
@@ -437,10 +448,10 @@ const RepositoryList: React.FC = () => {
         </div>
       </div>
 
-      {/* Analytics */}
+      {/* Conteúdo modo Analytics */}
       {viewMode === 'analytics' && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {/* Language Distribution */}
+          {/* Distribuição de Linguagens */}
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
               <Code2 className="w-5 h-5 mr-2 text-blue-400" />
@@ -467,7 +478,7 @@ const RepositoryList: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          {/* Repository Activity Timeline */}
+          {/* Atividade dos Repositórios */}
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
               <Activity className="w-5 h-5 mr-2 text-green-400" />
@@ -491,7 +502,7 @@ const RepositoryList: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          {/* Repository Health Matrix */}
+          {/* Matriz de Saúde dos Repositórios */}
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
               <Target className="w-5 h-5 mr-2 text-purple-400" />
@@ -537,7 +548,7 @@ const RepositoryList: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          {/* Language Performance */}
+          {/* Performance por Linguagem */}
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
               <BarChart3 className="w-5 h-5 mr-2 text-orange-400" />
@@ -563,7 +574,7 @@ const RepositoryList: React.FC = () => {
         </div>
       )}
 
-      {/* Filtros Avançados */}
+      {/* Filtros */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-white">Filtros e Busca</h3>
@@ -579,7 +590,7 @@ const RepositoryList: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Search */}
+          {/* Campo de busca */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
             <input
@@ -592,7 +603,7 @@ const RepositoryList: React.FC = () => {
             />
           </div>
 
-          {/* Sort */}
+          {/* Ordenação */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortBy)}
@@ -608,7 +619,7 @@ const RepositoryList: React.FC = () => {
             <option value="issues">Issues abertas</option>
           </select>
 
-          {/* Visibility Filter */}
+          {/* Filtro de visibilidade */}
           <select
             value={filterBy}
             onChange={(e) => setFilterBy(e.target.value as FilterBy)}
@@ -622,7 +633,7 @@ const RepositoryList: React.FC = () => {
             <option value="template">Templates</option>
           </select>
 
-          {/* Language Filter */}
+          {/* Filtro de linguagem */}
           <select
             value={languageFilter}
             onChange={(e) => setLanguageFilter(e.target.value)}
@@ -636,11 +647,11 @@ const RepositoryList: React.FC = () => {
           </select>
         </div>
 
-        {/* Advanced Filters */}
+        {/* Filtros avançados (visíveis conforme estado) */}
         {showAdvancedFilters && (
           <div id="advanced-filters" className="mt-4 pt-4 border-t border-slate-600" aria-live="polite">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Date Range */}
+              {/* Seleção de período */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2" htmlFor="date-range">
                   Período de Atividade
@@ -660,7 +671,7 @@ const RepositoryList: React.FC = () => {
                 </select>
               </div>
 
-              {/* Selected Repos Count */}
+              {/* Contagem de repositórios selecionados */}
               {selectedRepos.length > 0 && (
                 <div className="flex items-end">
                   <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-3">
@@ -675,7 +686,7 @@ const RepositoryList: React.FC = () => {
         )}
       </div>
 
-      {/* Repository List/Grid */}
+      {/* Lista ou grade de repositórios */}
       {loading && repositories.length === 0 ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
@@ -710,7 +721,7 @@ const RepositoryList: React.FC = () => {
               >
                 {viewMode === 'grid' ? (
                   <>
-                    {/* Header */}
+                    {/* Cabeçalho do card */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -743,7 +754,7 @@ const RepositoryList: React.FC = () => {
                       </a>
                     </div>
 
-                    {/* Metrics Grid */}
+                    {/* Métricas resumidas */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center gap-2 text-sm">
                         <Star className="w-4 h-4 text-yellow-400" />
@@ -767,7 +778,7 @@ const RepositoryList: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Language and Health */}
+                    {/* Linguagem e saúde */}
                     <div className="flex items-center justify-between mb-4">
                       {repo.language && (
                         <div className="flex items-center gap-2">
@@ -785,7 +796,7 @@ const RepositoryList: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Advanced Metrics */}
+                    {/* Métricas avançadas */}
                     {metrics && (
                       <div className="grid grid-cols-3 gap-2 mb-4 text-xs">
                         <div className="text-center">
@@ -803,7 +814,7 @@ const RepositoryList: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Timestamps */}
+                    {/* Datas de criação, atualização e tamanho */}
                     <div className="space-y-1 text-xs text-slate-500">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-3 h-3 text-blue-400" />
@@ -820,7 +831,7 @@ const RepositoryList: React.FC = () => {
                     </div>
                   </>
                 ) : (
-                  // List View
+                  // Visualização em lista simplificada
                   <>
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -888,6 +899,7 @@ const RepositoryList: React.FC = () => {
           })}
         </div>
       ) : (
+        // Mensagem caso nenhum repositório seja encontrado
         <div className="text-center py-12">
           <GitBranch className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-slate-400 mb-2">Nenhum repositório encontrado</h3>
@@ -897,7 +909,7 @@ const RepositoryList: React.FC = () => {
         </div>
       )}
 
-      {/* Comparison View */}
+      {/* Visualização de comparação entre múltiplos repositórios */}
       {viewMode === 'comparison' && selectedRepos.length > 1 && (
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
@@ -920,7 +932,6 @@ const RepositoryList: React.FC = () => {
               <tbody>
                 {selectedRepos.map(id => {
                   const repo = repositories.find(r => r.id === id);
-                  const metrics = repositoryMetrics.find(m => m.id === id);
                   if (!repo) return null;
                   return (
                     <tr key={id} className="border-b border-slate-700 hover:bg-slate-700 transition-colors">

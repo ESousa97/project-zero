@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Line, PieChart, Pie, Cell, BarChart, Bar,
+  Line, PieChart, Pie, Cell,
   Area, ComposedChart, ScatterChart, Scatter,
-  } from 'recharts';
+} from 'recharts';
 import {
   GitBranch, GitCommit, Star, Eye, TrendingUp, Code,
   Activity, Clock, Zap, Target, Award, Gauge, Layers,
@@ -20,10 +20,10 @@ interface RepositoryMetrics {
   commits: number;
   issues: number;
   size: number;
-  age: number;
+  age: number;            // idade em dias
   lastUpdate: string;
   language: string;
-  activity: number;
+  activity: number;       // score baseado na atualização recente
 }
 
 interface TimeSeriesData {
@@ -44,11 +44,14 @@ interface LanguageStats {
 
 const Dashboard: React.FC = () => {
   const { repositories, user, token, loading, fetchRepositories, fetchUser, commits } = useGitHub();
+
+  // Estado para controle do modal de token e filtros do dashboard
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [timeRange, setTimeRange] = useState<'1M' | '3M' | '6M' | '1Y' | 'ALL'>('6M');
   const [selectedMetric, setSelectedMetric] = useState<'commits' | 'stars' | 'forks' | 'issues'>('commits');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Verifica token e faz fetch dos dados iniciais
   useEffect(() => {
     if (!token) {
       setShowTokenModal(true);
@@ -58,41 +61,36 @@ const Dashboard: React.FC = () => {
     }
   }, [token, user, fetchUser, fetchRepositories]);
 
-  // Estatísticas avançadas calculadas
+  // Cálculo das estatísticas avançadas resumidas
   const advancedStats = useMemo(() => {
     if (!repositories.length) return null;
 
     const now = new Date();
-    const totalStars = repositories.reduce((sum, repo) => sum + repo.stargazers_count, 0);
-    const totalForks = repositories.reduce((sum, repo) => sum + repo.forks_count, 0);
-    const totalWatchers = repositories.reduce((sum, repo) => sum + repo.watchers_count, 0);
-    const totalIssues = repositories.reduce((sum, repo) => sum + repo.open_issues_count, 0);
-    const totalSize = repositories.reduce((sum, repo) => sum + repo.size, 0);
 
-    const privateRepos = repositories.filter(repo => repo.private).length;
+    const totalStars = repositories.reduce((sum, r) => sum + r.stargazers_count, 0);
+    const totalForks = repositories.reduce((sum, r) => sum + r.forks_count, 0);
+    const totalWatchers = repositories.reduce((sum, r) => sum + r.watchers_count, 0);
+    const totalIssues = repositories.reduce((sum, r) => sum + r.open_issues_count, 0);
+    const totalSize = repositories.reduce((sum, r) => sum + r.size, 0);
+
+    const privateRepos = repositories.filter(r => r.private).length;
     const publicRepos = repositories.length - privateRepos;
 
-    // Repositórios ativos (atualizados nos últimos 30 dias)
-    const activeRepos = repositories.filter(repo => {
-      const lastUpdate = new Date(repo.updated_at);
+    const activeRepos = repositories.filter(r => {
+      const lastUpdate = new Date(r.updated_at);
       const daysDiff = (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24);
       return daysDiff <= 30;
     }).length;
 
-    // Repositórios populares (com mais de 10 stars)
-    const popularRepos = repositories.filter(repo => repo.stargazers_count >= 10).length;
-
-    // Média de stars por repositório
+    const popularRepos = repositories.filter(r => r.stargazers_count >= 10).length;
     const avgStars = totalStars / repositories.length;
 
-    // Repositório mais popular
-    const mostPopularRepo = repositories.reduce((prev, current) =>
-      prev.stargazers_count > current.stargazers_count ? prev : current
+    const mostPopularRepo = repositories.reduce((prev, curr) =>
+      prev.stargazers_count > curr.stargazers_count ? prev : curr
     );
 
-    // Atividade recente (últimos 7 dias)
-    const recentActivity = repositories.filter(repo => {
-      const lastUpdate = new Date(repo.updated_at);
+    const recentActivity = repositories.filter(r => {
+      const lastUpdate = new Date(r.updated_at);
       const daysDiff = (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24);
       return daysDiff <= 7;
     }).length;
@@ -103,7 +101,7 @@ const Dashboard: React.FC = () => {
       totalForks,
       totalWatchers,
       totalIssues,
-      totalSize: (totalSize / 1024).toFixed(1), // Convert to MB
+      totalSize: (totalSize / 1024).toFixed(1), // em MB
       privateRepos,
       publicRepos,
       activeRepos,
@@ -111,18 +109,18 @@ const Dashboard: React.FC = () => {
       avgStars: avgStars.toFixed(1),
       mostPopularRepo: mostPopularRepo.name,
       recentActivity,
-      starsGrowthRate: '+12.5%', // Placeholder - would need historical data
+      starsGrowthRate: '+12.5%',    // Placeholder, precisa de dados históricos
       forksGrowthRate: '+8.3%',
-      commitsThisMonth: commits.length || 0
+      commitsThisMonth: commits.length || 0,
     };
   }, [repositories, commits]);
 
+  // Atualiza o tipo de métrica para o gráfico de atividade
   const handleMetricChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-  const value = e.target.value as 'commits' | 'stars' | 'forks' | 'issues';
-  setSelectedMetric(value);
-};
+    setSelectedMetric(e.target.value as 'commits' | 'stars' | 'forks' | 'issues');
+  };
 
-  // Dados para gráfico de linguagens com estatísticas avançadas
+  // Dados para gráfico de linguagens
   const languageData: LanguageStats[] = useMemo(() => {
     const languageMap = new Map<string, { count: number; stars: number; repos: string[] }>();
 
@@ -132,7 +130,7 @@ const Dashboard: React.FC = () => {
         languageMap.set(repo.language, {
           count: current.count + 1,
           stars: current.stars + repo.stargazers_count,
-          repos: [...current.repos, repo.name]
+          repos: [...current.repos, repo.name],
         });
       }
     });
@@ -144,13 +142,13 @@ const Dashboard: React.FC = () => {
         count: data.count,
         percentage: (data.count / total) * 100,
         totalStars: data.stars,
-        avgStars: data.stars / data.count
+        avgStars: data.stars / data.count,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
   }, [repositories]);
 
-  // Dados de série temporal para atividade
+  // Dados para gráfico de séries temporais (atividade)
   const timeSeriesData: TimeSeriesData[] = useMemo(() => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const data: { [key: string]: TimeSeriesData } = {};
@@ -177,55 +175,61 @@ const Dashboard: React.FC = () => {
     return Object.values(data).slice(-12);
   }, [repositories]);
 
-  // Métricas de repositórios para scatter plot
+  // Dados para scatter plot de performance dos repositórios
   const repositoryMetrics: RepositoryMetrics[] = useMemo(() => {
+    const now = Date.now();
     return repositories.map(repo => {
       const created = new Date(repo.created_at);
       const updated = new Date(repo.updated_at);
-      const age = (Date.now() - created.getTime()) / (1000 * 3600 * 24); // days
-      const lastUpdateDays = (Date.now() - updated.getTime()) / (1000 * 3600 * 24);
+      const age = (now - created.getTime()) / (1000 * 3600 * 24);
+      const lastUpdateDays = (now - updated.getTime()) / (1000 * 3600 * 24);
 
       return {
         name: repo.name,
         stars: repo.stargazers_count,
         forks: repo.forks_count,
-        commits: 0, // Would need to fetch from commits API
+        commits: 0, // Placeholder, dados reais podem vir de API de commits
         issues: repo.open_issues_count,
         size: repo.size,
         age: Math.round(age),
         lastUpdate: repo.updated_at,
         language: repo.language || 'Unknown',
-        activity: Math.max(0, 100 - lastUpdateDays) // Activity score based on recency
+        activity: Math.max(0, 100 - lastUpdateDays), // Score de atividade baseado em última atualização
       };
     });
   }, [repositories]);
 
+  // Recarrega dados do GitHub
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await Promise.all([fetchRepositories(), fetchUser()]);
     setIsRefreshing(false);
   };
 
+  // Paleta de cores para gráficos
   const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316', '#EC4899', '#84CC16'];
 
+  // Renderização condicional do modal caso token não esteja presente
   if (!token) {
     return <TokenModal isOpen={showTokenModal} onClose={() => setShowTokenModal(false)} />;
   }
 
+  // Loader inicial enquanto carrega dados
   if (loading && !repositories.length) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-slate-400">Carregando dados detalhados do GitHub...</p>
         </div>
       </div>
     );
   }
 
+  // JSX principal do dashboard
   return (
     <div className="space-y-6">
-      {/* Enhanced Header */}
+      {/* Cabeçalho */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
@@ -236,9 +240,9 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Time Range Selector */}
+          {/* Selector de período */}
           <div className="flex bg-slate-800 rounded-lg p-1">
-            {(['1M', '3M', '6M', '1Y', 'ALL'] as const).map((range) => (
+            {(['1M', '3M', '6M', '1Y', 'ALL'] as const).map(range => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
@@ -253,7 +257,7 @@ const Dashboard: React.FC = () => {
             ))}
           </div>
 
-          {/* Refresh Button */}
+          {/* Botão Atualizar */}
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
@@ -263,6 +267,7 @@ const Dashboard: React.FC = () => {
             Atualizar
           </button>
 
+          {/* Saudação usuário */}
           {user && (
             <div className="text-right">
               <p className="text-white font-semibold">Olá, {user.name || user.login}!</p>
@@ -274,56 +279,35 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Enhanced Stats Cards Grid */}
+      {/* Cards com estatísticas resumidas */}
       {advancedStats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          <StatCard
-            title="Total de Repositórios"
-            value={advancedStats.totalRepos}
-            icon={GitBranch}
-            color="blue"
-            trend="+12%"
-          />
-          <StatCard
-            title="Total de Stars"
-            value={advancedStats.totalStars}
-            icon={Star}
-            color="yellow"
-            trend={advancedStats.starsGrowthRate}
-          />
-          <StatCard
-            title="Total de Forks"
-            value={advancedStats.totalForks}
-            icon={GitCommit}
-            color="green"
-            trend={advancedStats.forksGrowthRate}
-          />
-          <StatCard
-            title="Issues Abertas"
-            value={advancedStats.totalIssues}
-            icon={AlertCircle}
-            color="red"
-            trend="-5%"
-          />
-          <StatCard
-            title="Repositórios Ativos"
-            value={advancedStats.activeRepos}
-            icon={Zap}
-            color="purple"
-            trend="+18%"
-          />
-          <StatCard
-            title="Tamanho Total"
-            value={parseFloat(advancedStats.totalSize)} // número puro
-            icon={Gauge}
-            color="blue"
-            trend="+25%"
-          />
-          <p className="text-sm text-slate-400 ml-1">MB</p> {/* texto separado */}
+          <StatCard title="Total de Repositórios" value={advancedStats.totalRepos} icon={GitBranch} color="blue" trend="+12%" />
+          <StatCard title="Total de Stars" value={advancedStats.totalStars} icon={Star} color="yellow" trend={advancedStats.starsGrowthRate} />
+          <StatCard title="Total de Forks" value={advancedStats.totalForks} icon={GitCommit} color="green" trend={advancedStats.forksGrowthRate} />
+          <StatCard title="Issues Abertas" value={advancedStats.totalIssues} icon={AlertCircle} color="red" trend="-5%" />
+          <StatCard title="Repositórios Ativos" value={advancedStats.activeRepos} icon={Zap} color="purple" trend="+18%" />
+
+          {/* Card customizado para tamanho total */}
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 group">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-slate-400 text-sm font-medium mb-1">Tamanho Total</p>
+                <p className="text-3xl font-bold text-white">{advancedStats.totalSize} MB</p>
+                <div className="flex items-center space-x-1 text-green-400">
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="text-sm font-medium">+25%</span>
+                </div>
+              </div>
+              <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                <Gauge className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Additional Stats Row */}
+      {/* Linha adicional de estatísticas */}
       {advancedStats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
@@ -352,7 +336,7 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm font-medium mb-1">Públicos vs Privados</p>
-                <p className="text-2xl font-bold text-white">{advancedStats.publicRepos}:{advancedStats.privateRepos}</p>
+                <p className="text-2xl font-bold text-white">{advancedStats.publicRepos} : {advancedStats.privateRepos}</p>
                 <p className="text-purple-400 text-sm">proporção</p>
               </div>
               <Layers className="w-8 h-8 text-purple-500" />
@@ -372,9 +356,9 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Enhanced Charts Grid */}
+      {/* Grade com gráficos principais */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Activity Timeline */}
+        {/* Linha do tempo de atividade */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-white flex items-center">
@@ -424,7 +408,7 @@ const Dashboard: React.FC = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Language Distribution with Advanced Stats */}
+        {/* Distribuição de Linguagens */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
             <Code className="w-5 h-5 mr-2 text-blue-400" />
@@ -473,7 +457,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Repository Performance Matrix */}
+      {/* Matriz de performance dos repositórios */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
           <Gauge className="w-5 h-5 mr-2 text-purple-400" />
@@ -519,80 +503,7 @@ const Dashboard: React.FC = () => {
         </ResponsiveContainer>
       </div>
 
-      {/* Repository Activity Heatmap Simulation */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Repositories by Metrics */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-            <Award className="w-5 h-5 mr-2 text-yellow-400" />
-            Top Repositórios
-          </h3>
-          <div className="space-y-4 max-h-[400px] overflow-y-auto">
-            {repositoryMetrics
-              .sort((a, b) => b.stars - a.stars)
-              .slice(0, 8)
-              .map((repo, index) => (
-                <div
-                  key={repo.name}
-                  className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-white">{repo.name}</h4>
-                      <p className="text-sm text-slate-400">{repo.language}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="flex items-center gap-1 text-yellow-400">
-                        <Star className="w-4 h-4" />
-                        {repo.stars}
-                      </span>
-                      <span className="flex items-center gap-1 text-blue-400">
-                        <GitCommit className="w-4 h-4" />
-                        {repo.forks}
-                      </span>
-                      <span className="flex items-center gap-1 text-green-400">
-                        <Activity className="w-4 h-4" />
-                        {repo.activity}%
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">{repo.age} dias</p>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-
-        {/* Language Performance Chart */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-            <Code className="w-5 h-5 mr-2 text-green-400" />
-            Performance por Linguagem
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={languageData.slice(0, 6)}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="language" stroke="#9CA3AF" fontSize={12} />
-              <YAxis stroke="#9CA3AF" fontSize={12} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1F2937',
-                  border: '1px solid #374151',
-                  borderRadius: '8px'
-                }}
-              />
-              <Bar dataKey="totalStars" fill="#3B82F6" name="Total Stars" />
-              <Bar dataKey="count" fill="#10B981" name="Repositórios" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Recent Activity Feed */}
+      {/* Feed de atividade recente */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
           <Clock className="w-5 h-5 mr-2 text-blue-400" />

@@ -198,7 +198,7 @@ export interface User {
   starred_repos?: Repository[];
 }
 
-export interface Event {
+export interface Event<TPayload = unknown> {
   id: string;
   type: string;
   actor: GitHubUser;
@@ -207,7 +207,7 @@ export interface Event {
     name: string;
     url: string;
   };
-  payload: any;
+  payload: TPayload;  // tipo genérico
   public: boolean;
   created_at: string;
 }
@@ -315,6 +315,21 @@ export interface ReleaseAsset {
   browser_download_url: string;
 }
 
+export interface GitHubApp {
+  id: number;
+  slug?: string;
+  node_id?: string;
+  owner?: GitHubUser;
+  name: string;
+  description?: string | null;
+  external_url?: string;
+  html_url?: string;
+  created_at?: string;
+  updated_at?: string;
+  permissions?: { [key: string]: string };
+  events?: string[];
+}
+
 export interface Issue {
   url: string;
   repository_url: string;
@@ -352,9 +367,17 @@ export interface Issue {
   body_text?: string;
   timeline_url?: string;
   repository?: Repository;
-  performed_via_github_app?: any;
+  performed_via_github_app?: GitHubApp;
   state_reason?: string | null;
   reactions?: Reactions;
+}
+
+export interface AutoMerge {
+  enabled_by: GitHubUser;
+  merge_method: 'merge' | 'squash' | 'rebase';
+  commit_title?: string | null;
+  commit_message?: string | null;
+  sha?: string | null;
 }
 
 export interface PullRequest {
@@ -401,7 +424,7 @@ export interface PullRequest {
     statuses: { href: string };
   };
   author_association: string;
-  auto_merge: any | null;
+  auto_merge: AutoMerge | null;
   active_lock_reason: string | null;
   merged: boolean;
   mergeable: boolean | null;

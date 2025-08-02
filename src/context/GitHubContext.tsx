@@ -121,6 +121,18 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [cache, setCache] = useState<Map<string, { data: any; timestamp: number }>>(new Map());
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+  // Utility functions
+  const clearError = useCallback(() => {
+    setError('');
+  }, []);
+
+  const clearAllErrors = useCallback(() => {
+    setError('');
+    setCommitError('');
+    setRepositoryError('');
+    setUserError('');
+  }, []);
+
   const handleSetToken = useCallback((newToken: string) => {
     setToken(newToken);
     localStorage.setItem('github_token', newToken);
@@ -130,7 +142,7 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setUser(null);
     clearAllErrors();
     setCache(new Map());
-  }, []);
+  }, [clearAllErrors]);
 
   // Generic request function with caching
   const makeRequest = useCallback(async (url: string, useCache = true): Promise<any> => {
@@ -166,7 +178,7 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     
     return data;
-  }, [token, cache]);
+  }, [token, cache, CACHE_DURATION]);
 
   // Paginated request function
   const makePaginatedRequest = useCallback(async (baseUrl: string, maxPages = 10): Promise<any[]> => {
@@ -182,7 +194,7 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         if (Array.isArray(data)) {
           allData = allData.concat(data);
-          hasMorePages = data.length === 100; // GitHub returns 100 items per page when there are more
+          hasMorePages = data.length === 100;
         } else {
           hasMorePages = false;
         }
@@ -207,7 +219,7 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       // Enrich repositories with additional data
       const enrichedRepos = await Promise.all(
-        data.slice(0, 50).map(async (repo: Repository) => { // Limit to 50 for performance
+        data.slice(0, 50).map(async (repo: Repository) => {
           try {
             const [languagesData, contributorsData] = await Promise.all([
               makeRequest(`https://api.github.com/repos/${repo.full_name}/languages`).catch(() => ({})),
@@ -220,8 +232,8 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               contributors_data: contributorsData,
               contributor_count: contributorsData.length
             };
-          } catch (error) {
-            console.error(`Error enriching repo ${repo.name}:`, error);
+          } catch (err) {
+            console.error(`Error enriching repo ${repo.name}:`, err);
             return repo;
           }
         })
@@ -270,8 +282,8 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               stats: detailedCommit.stats,
               files: detailedCommit.files
             };
-          } catch (error) {
-            console.error(`Error enriching commit ${commit.sha}:`, error);
+          } catch (err) {
+            console.error(`Error enriching commit ${commit.sha}:`, err);
             return commit;
           }
         })
@@ -475,18 +487,6 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [makeRequest]);
 
-  // Utility functions
-  const clearError = useCallback(() => {
-    setError('');
-  }, []);
-
-  const clearAllErrors = useCallback(() => {
-    setError('');
-    setCommitError('');
-    setRepositoryError('');
-    setUserError('');
-  }, []);
-
   const clearCache = useCallback(() => {
     setCache(new Map());
   }, []);
@@ -526,7 +526,7 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, CACHE_DURATION);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [CACHE_DURATION]);
 
   // Set loading state when any specific loading is active
   useEffect(() => {

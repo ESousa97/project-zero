@@ -1,23 +1,17 @@
 import React, { useEffect, useMemo } from 'react';
 import { 
-  MapPin, Link as LinkIcon, Building, Mail, Calendar, GitBranch, Star, 
-  Users, BookOpen, ExternalLink, Award, TrendingUp, Activity, Clock,
-  Code, Eye, GitCommit, Zap, Target, Globe, Shield, Coffee, Heart,
-  Trophy, Flame, BarChart3, PieChart, LineChart
+  MapPin, Building, Mail, Calendar, GitBranch, Star, 
+  Users, BookOpen, ExternalLink, Award, Activity,
+  Code, GitCommit, Zap, Target, Globe, Trophy, Flame,
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, RadialBarChart, RadialBar,
-  LineChart as RechartsLineChart, Line, ScatterChart, Scatter
+  PieChart as RechartsPieChart, Pie, Cell,
+  ScatterChart, Scatter
 } from 'recharts';
 import { useGitHub } from '../context/GitHubContext';
 
-interface ContributionData {
-  date: string;
-  count: number;
-  level: number;
-}
-
+// Interface para contribuição por linguagem, incluindo número de repositórios, stars, commits e porcentagem
 interface LanguageContribution {
   language: string;
   repos: number;
@@ -27,20 +21,7 @@ interface LanguageContribution {
   color: string;
 }
 
-interface ActivityPattern {
-  hour: number;
-  day: string;
-  commits: number;
-  intensity: number;
-}
-
-interface CollaborationNetwork {
-  collaborator: string;
-  sharedRepos: number;
-  totalContributions: number;
-  relationship: 'frequent' | 'occasional' | 'rare';
-}
-
+// Interface para badges de conquistas, com título, descrição, ícone, cor, status de ganho e progresso
 interface AchievementBadge {
   id: string;
   title: string;
@@ -53,42 +34,51 @@ interface AchievementBadge {
 }
 
 const UserProfile: React.FC = () => {
+  // Extraímos do contexto GitHub usuário, repositórios, commits e métodos auxiliares
   const { user, repositories, commits, loading, fetchUser } = useGitHub();
 
+  // Ao montar o componente, se usuário não estiver carregado, disparar busca
   useEffect(() => {
     if (!user) {
       fetchUser();
     }
   }, [user, fetchUser]);
 
-  // Estatísticas avançadas calculadas
+  /**
+   * Cálculos avançados de estatísticas baseadas nos repositórios e usuário.
+   * Usamos useMemo para evitar cálculos desnecessários.
+   */
   const advancedStats = useMemo(() => {
     if (!repositories.length) return null;
 
+    // Soma de stars, forks, watchers, issues e tamanho total
     const totalStars = repositories.reduce((sum, repo) => sum + repo.stargazers_count, 0);
     const totalForks = repositories.reduce((sum, repo) => sum + repo.forks_count, 0);
     const totalWatchers = repositories.reduce((sum, repo) => sum + repo.watchers_count, 0);
     const totalIssues = repositories.reduce((sum, repo) => sum + repo.open_issues_count, 0);
     const totalSize = repositories.reduce((sum, repo) => sum + repo.size, 0);
-    
+
+    // Linguagens únicas usadas nos repositórios
     const languages = [...new Set(repositories.map(repo => repo.language).filter(Boolean))];
+
+    // Contagem de repositórios públicos e privados
     const publicRepos = repositories.filter(repo => !repo.private).length;
     const privateRepos = repositories.length - publicRepos;
-    
-    // Repositórios por ano
+
+    // Quantidade de repositórios criados por ano
     const reposByYear = repositories.reduce((acc, repo) => {
       const year = new Date(repo.created_at).getFullYear();
       acc[year] = (acc[year] || 0) + 1;
       return acc;
     }, {} as Record<number, number>);
 
-    // Atividade recente (últimos 30 dias)
+    // Quantidade de repositórios atualizados nos últimos 30 dias
     const recentActivity = repositories.filter(repo => {
       const daysSinceUpdate = (Date.now() - new Date(repo.updated_at).getTime()) / (1000 * 60 * 60 * 24);
       return daysSinceUpdate <= 30;
     }).length;
 
-    // Repositórios mais populares
+    // Repositório com mais stars
     const mostStarredRepo = repositories.reduce((prev, current) => 
       prev.stargazers_count > current.stargazers_count ? prev : current
     );
@@ -96,11 +86,11 @@ const UserProfile: React.FC = () => {
     // Média de stars por repositório
     const avgStarsPerRepo = totalStars / repositories.length;
 
-    // Streak de commits (simulado)
-    const currentStreak = 15; // Seria calculado baseado no histórico real
+    // Streaks de commits (valores simulados, podem ser ajustados com dados reais)
+    const currentStreak = 15;
     const longestStreak = 45;
 
-    // Score de desenvolvedor (algoritmo personalizado)
+    // Score do desenvolvedor com base em diversos fatores
     const developerScore = Math.min(100, (
       (totalStars * 0.3) + 
       (totalForks * 0.2) + 
@@ -109,13 +99,14 @@ const UserProfile: React.FC = () => {
       (user?.followers || 0) * 0.5
     ));
 
+    // Retornamos todas as estatísticas calculadas, formatadas quando necessário
     return {
       totalRepos: repositories.length,
       totalStars,
       totalForks,
       totalWatchers,
       totalIssues,
-      totalSize: Math.round(totalSize / 1024), // MB
+      totalSize: Math.round(totalSize / 1024), // Convertido para MB
       languages: languages.length,
       publicRepos,
       privateRepos,
@@ -128,26 +119,30 @@ const UserProfile: React.FC = () => {
       longestStreak,
       developerScore: Math.round(developerScore),
       accountAge: Math.floor((Date.now() - new Date(user?.created_at || '').getTime()) / (1000 * 60 * 60 * 24)),
-      contributionsThisYear: commits.length || 156, // Simulado
-      avgCommitsPerDay: ((commits.length || 156) / 365).toFixed(1)
+      contributionsThisYear: commits.length || 156, // Valor simulado para commits no ano
+      avgCommitsPerDay: ((commits.length || 156) / 365).toFixed(1),
     };
   }, [repositories, user, commits]);
 
-  // Contribuições por linguagem
+  /**
+   * Calcula a contribuição por linguagem, agregando dados de repositórios, stars e commits.
+   * Usamos cores distintas para cada linguagem para visualização gráfica.
+   */
   const languageContributions: LanguageContribution[] = useMemo(() => {
     const langMap = new Map<string, { repos: number; stars: number; commits: number }>();
-    
+
     repositories.forEach(repo => {
       if (repo.language) {
         const current = langMap.get(repo.language) || { repos: 0, stars: 0, commits: 0 };
         langMap.set(repo.language, {
           repos: current.repos + 1,
           stars: current.stars + repo.stargazers_count,
-          commits: current.commits + Math.floor(Math.random() * 50) + 10 // Simulado
+          commits: current.commits + Math.floor(Math.random() * 50) + 10, // Simulação para commits
         });
       }
     });
 
+    // Paleta de cores para as linguagens
     const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'];
     const totalRepos = repositories.length;
 
@@ -158,36 +153,43 @@ const UserProfile: React.FC = () => {
         stars: data.stars,
         commits: data.commits,
         percentage: (data.repos / totalRepos) * 100,
-        color: colors[index % colors.length]
+        color: colors[index % colors.length],
       }))
       .sort((a, b) => b.repos - a.repos)
       .slice(0, 8);
   }, [repositories]);
 
-  // Dados de atividade ao longo do tempo
+  /**
+   * Dados simulados de atividade mensal para visualização gráfica.
+   * Mostra commits, repositórios criados, stars e pull requests por mês.
+   */
   const activityData = useMemo(() => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const currentYear = new Date().getFullYear();
-    
+
     return months.map((month, index) => {
-      // Simulando dados de atividade
+      // Simulação de atividade base
       const baseActivity = Math.floor(Math.random() * 30) + 10;
+
+      // Repositórios criados no mês e ano atuais
       const reposCreated = repositories.filter(repo => {
         const repoDate = new Date(repo.created_at);
         return repoDate.getFullYear() === currentYear && repoDate.getMonth() === index;
       }).length;
-      
+
       return {
         month,
         commits: baseActivity + Math.floor(Math.random() * 20),
         repos: reposCreated,
         stars: Math.floor(Math.random() * 15),
-        prs: Math.floor(Math.random() * 8) + 2
+        prs: Math.floor(Math.random() * 8) + 2,
       };
     });
   }, [repositories]);
 
-  // Badges de conquistas
+  /**
+   * Lista de badges de conquistas, cada uma com condição de ganho e progresso visualizado.
+   */
   const achievements: AchievementBadge[] = useMemo(() => {
     if (!advancedStats) return [];
 
@@ -198,7 +200,7 @@ const UserProfile: React.FC = () => {
         description: 'Criou seu primeiro repositório',
         icon: GitBranch,
         color: 'text-blue-500',
-        earned: advancedStats.totalRepos > 0
+        earned: advancedStats.totalRepos > 0,
       },
       {
         id: 'star-collector',
@@ -208,7 +210,7 @@ const UserProfile: React.FC = () => {
         color: 'text-yellow-500',
         earned: advancedStats.totalStars >= 100,
         progress: advancedStats.totalStars,
-        requirement: 100
+        requirement: 100,
       },
       {
         id: 'fork-master',
@@ -218,7 +220,7 @@ const UserProfile: React.FC = () => {
         color: 'text-green-500',
         earned: advancedStats.totalForks >= 50,
         progress: advancedStats.totalForks,
-        requirement: 50
+        requirement: 50,
       },
       {
         id: 'polyglot',
@@ -228,7 +230,7 @@ const UserProfile: React.FC = () => {
         color: 'text-purple-500',
         earned: advancedStats.languages >= 5,
         progress: advancedStats.languages,
-        requirement: 5
+        requirement: 5,
       },
       {
         id: 'productive',
@@ -238,7 +240,7 @@ const UserProfile: React.FC = () => {
         color: 'text-orange-500',
         earned: advancedStats.totalRepos >= 20,
         progress: advancedStats.totalRepos,
-        requirement: 20
+        requirement: 20,
       },
       {
         id: 'influencer',
@@ -248,7 +250,7 @@ const UserProfile: React.FC = () => {
         color: 'text-pink-500',
         earned: (user?.followers || 0) >= 100,
         progress: user?.followers || 0,
-        requirement: 100
+        requirement: 100,
       },
       {
         id: 'fire-streak',
@@ -258,7 +260,7 @@ const UserProfile: React.FC = () => {
         color: 'text-red-500',
         earned: advancedStats.currentStreak >= 30,
         progress: advancedStats.currentStreak,
-        requirement: 30
+        requirement: 30,
       },
       {
         id: 'veteran',
@@ -266,34 +268,12 @@ const UserProfile: React.FC = () => {
         description: '2+ anos no GitHub',
         icon: Trophy,
         color: 'text-amber-500',
-        earned: advancedStats.accountAge >= 730
-      }
+        earned: advancedStats.accountAge >= 730,
+      },
     ];
   }, [advancedStats, user]);
 
-  // Padrões de atividade (heatmap simulado)
-  const activityPatterns: ActivityPattern[] = useMemo(() => {
-    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const patterns: ActivityPattern[] = [];
-    
-    days.forEach(day => {
-      for (let hour = 0; hour < 24; hour++) {
-        const baseIntensity = day === 'Sáb' || day === 'Dom' ? 0.3 : 0.7;
-        const hourFactor = hour >= 9 && hour <= 18 ? 1 : 0.4;
-        const commits = Math.floor(Math.random() * 10 * baseIntensity * hourFactor);
-        
-        patterns.push({
-          hour,
-          day,
-          commits,
-          intensity: Math.min(100, commits * 10)
-        });
-      }
-    });
-    
-    return patterns;
-  }, []);
-
+  // Renderiza tela de loading enquanto dados não estão carregados
   if (loading && !user) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -305,6 +285,7 @@ const UserProfile: React.FC = () => {
     );
   }
 
+  // Mensagem de erro caso usuário não esteja disponível após tentativa de carregamento
   if (!user) {
     return (
       <div className="text-center py-12">
@@ -315,9 +296,10 @@ const UserProfile: React.FC = () => {
     );
   }
 
+  // Renderização principal do componente com todos os dados e gráficos
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Cabeçalho do perfil */}
       <div>
         <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
           <Users className="w-10 h-10 text-purple-500" />
@@ -326,9 +308,9 @@ const UserProfile: React.FC = () => {
         <p className="text-slate-400">Análise completa da sua presença e atividade no GitHub</p>
       </div>
 
-      {/* Enhanced Profile Card */}
+      {/* Cartão principal com avatar, score e dados do usuário */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 overflow-hidden">
-        {/* Cover Image */}
+        {/* Capa colorida com Developer Score */}
         <div className="h-40 bg-gradient-to-r from-blue-600 via-purple-700 to-pink-600 relative">
           <div className="absolute inset-0 bg-black/20"></div>
           {advancedStats && (
@@ -340,16 +322,17 @@ const UserProfile: React.FC = () => {
                   <div 
                     className="h-full bg-white rounded-full transition-all duration-1000"
                     style={{ width: `${advancedStats.developerScore}%` }}
-                  ></div>
+                  />
                 </div>
               </div>
             </div>
           )}
         </div>
         
+        {/* Conteúdo do cartão */}
         <div className="px-8 pb-8">
           <div className="flex flex-col lg:flex-row items-start lg:items-end gap-6 -mt-20">
-            {/* Avatar and Basic Info */}
+            {/* Avatar do usuário */}
             <div className="relative">
               <img
                 src={user.avatar_url}
@@ -361,7 +344,7 @@ const UserProfile: React.FC = () => {
               </div>
             </div>
 
-            {/* User Info */}
+            {/* Informações principais do usuário */}
             <div className="flex-1">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
@@ -375,6 +358,7 @@ const UserProfile: React.FC = () => {
                   )}
                 </div>
                 
+                {/* Botões para GitHub e site pessoal */}
                 <div className="flex gap-3">
                   <a
                     href={`https://github.com/${user.login}`}
@@ -400,7 +384,7 @@ const UserProfile: React.FC = () => {
                 </div>
               </div>
 
-              {/* User Details Grid */}
+              {/* Dados complementares como empresa, localização, email e data de criação */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
                 {user.company && (
                   <div className="flex items-center gap-2 text-slate-300">
@@ -427,12 +411,12 @@ const UserProfile: React.FC = () => {
                   <Calendar className="w-4 h-4 text-purple-400" />
                   <span>Desde {new Date(user.created_at).toLocaleDateString('pt-BR', {
                     year: 'numeric',
-                    month: 'long'
+                    month: 'long',
                   })}</span>
                 </div>
               </div>
 
-              {/* Quick Stats */}
+              {/* Estatísticas rápidas como streak, commits por dia, ativos e linguagens */}
               {advancedStats && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                   <div className="bg-slate-700/30 rounded-lg p-3 text-center">
@@ -461,7 +445,7 @@ const UserProfile: React.FC = () => {
                   
                   <div className="bg-slate-700/30 rounded-lg p-3 text-center">
                     <div className="flex items-center justify-center gap-2 mb-1">
-                      <Coffee className="w-4 h-4 text-yellow-400" />
+                      <Code className="w-4 h-4 text-yellow-400" />
                       <span className="text-slate-400 text-sm">Linguagens</span>
                     </div>
                     <p className="text-xl font-bold text-white">{advancedStats.languages}</p>
@@ -473,17 +457,9 @@ const UserProfile: React.FC = () => {
         </div>
       </div>
 
-      {/* Enhanced Stats Grid */}
+      {/* Grade de estatísticas avançadas com ícones e valores */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-blue-500/50 transition-all duration-300 group">
-          <GitBranch className="w-8 h-8 text-blue-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-          <div className="text-2xl font-bold text-white">{user.public_repos}</div>
-          <div className="text-sm text-slate-400">Repos Públicos</div>
-          {advancedStats && (
-            <div className="text-xs text-blue-400 mt-1">+{advancedStats.privateRepos} privados</div>
-          )}
-        </div>
-
+        {/* Total de Stars */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-yellow-500/50 transition-all duration-300 group">
           <Star className="w-8 h-8 text-yellow-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
           <div className="text-2xl font-bold text-white">{advancedStats?.totalStars || 0}</div>
@@ -493,6 +469,7 @@ const UserProfile: React.FC = () => {
           )}
         </div>
 
+        {/* Seguidores */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-green-500/50 transition-all duration-300 group">
           <Users className="w-8 h-8 text-green-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
           <div className="text-2xl font-bold text-white">{user.followers}</div>
@@ -500,6 +477,7 @@ const UserProfile: React.FC = () => {
           <div className="text-xs text-green-400 mt-1">{user.following} seguindo</div>
         </div>
 
+        {/* Total de Forks */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-purple-500/50 transition-all duration-300 group">
           <GitCommit className="w-8 h-8 text-purple-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
           <div className="text-2xl font-bold text-white">{advancedStats?.totalForks || 0}</div>
@@ -509,6 +487,7 @@ const UserProfile: React.FC = () => {
           )}
         </div>
 
+        {/* Gists Públicos */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-orange-500/50 transition-all duration-300 group">
           <BookOpen className="w-8 h-8 text-orange-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
           <div className="text-2xl font-bold text-white">{user.public_gists}</div>
@@ -518,6 +497,7 @@ const UserProfile: React.FC = () => {
           )}
         </div>
 
+        {/* Linguagens */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-cyan-500/50 transition-all duration-300 group">
           <Code className="w-8 h-8 text-cyan-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
           <div className="text-2xl font-bold text-white">{advancedStats?.languages || 0}</div>
@@ -528,7 +508,7 @@ const UserProfile: React.FC = () => {
         </div>
       </div>
 
-      {/* Achievements Section */}
+      {/* Seção de conquistas e badges */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
           <Trophy className="w-5 h-5 mr-2 text-yellow-400" />
@@ -552,6 +532,7 @@ const UserProfile: React.FC = () => {
                   <h4 className="font-semibold text-white text-sm mb-1">{achievement.title}</h4>
                   <p className="text-xs text-slate-400 mb-2">{achievement.description}</p>
                   
+                  {/* Barra de progresso para conquistas parciais */}
                   {achievement.requirement && (
                     <div className="w-full bg-slate-600 rounded-full h-1.5 mb-2">
                       <div 
@@ -565,6 +546,7 @@ const UserProfile: React.FC = () => {
                     </div>
                   )}
                   
+                  {/* Exibição do progresso em números */}
                   {achievement.progress !== undefined && achievement.requirement && (
                     <p className="text-xs text-slate-500">
                       {achievement.progress}/{achievement.requirement}
@@ -572,6 +554,7 @@ const UserProfile: React.FC = () => {
                   )}
                 </div>
                 
+                {/* Checkmark para conquistas alcançadas */}
                 {achievement.earned && (
                   <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                     <span className="text-white text-xs">✓</span>
@@ -583,9 +566,9 @@ const UserProfile: React.FC = () => {
         </div>
       </div>
 
-      {/* Analytics Grid */}
+      {/* Grade de analytics com gráficos diversos */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Language Contributions */}
+        {/* Contribuições por Linguagem (PieChart) */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
             <Code className="w-5 h-5 mr-2 text-blue-400" />
@@ -613,8 +596,9 @@ const UserProfile: React.FC = () => {
               </RechartsPieChart>
             </ResponsiveContainer>
             
+            {/* Lista de linguagens com detalhes */}
             <div className="space-y-3 max-h-48 overflow-y-auto">
-              {languageContributions.map((lang, index) => (
+              {languageContributions.map((lang) => (
                 <div key={lang.language} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div 
@@ -636,7 +620,7 @@ const UserProfile: React.FC = () => {
           </div>
         </div>
 
-        {/* Activity Over Time */}
+        {/* Atividade ao longo do ano (AreaChart) */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
             <Activity className="w-5 h-5 mr-2 text-green-400" />
@@ -661,53 +645,7 @@ const UserProfile: React.FC = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Contribution Heatmap */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-            <Calendar className="w-5 h-5 mr-2 text-purple-400" />
-            Padrão de Atividade Semanal
-          </h3>
-          
-          <div className="space-y-3">
-            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-              <div key={day} className="flex items-center gap-2">
-                <span className="text-slate-400 text-sm w-8">{day}</span>
-                <div className="flex gap-1">
-                  {Array.from({ length: 24 }, (_, hour) => {
-                    const pattern = activityPatterns.find(p => p.day === day && p.hour === hour);
-                    const intensity = pattern?.intensity || 0;
-                    return (
-                      <div
-                        key={hour}
-                        className="w-3 h-3 rounded-sm transition-all duration-200 hover:scale-125"
-                        style={{
-                          backgroundColor: intensity > 70 ? '#10B981' :
-                                         intensity > 40 ? '#F59E0B' :
-                                         intensity > 20 ? '#3B82F6' :
-                                         intensity > 0 ? '#6B7280' : '#374151'
-                        }}
-                        title={`${day} ${hour}:00 - ${pattern?.commits || 0} commits`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="flex items-center justify-between mt-4 text-xs text-slate-400">
-            <span>Menos</span>
-            <div className="flex gap-1">
-              <div className="w-3 h-3 bg-slate-600 rounded-sm"></div>
-              <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-              <div className="w-3 h-3 bg-yellow-500 rounded-sm"></div>
-              <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
-            </div>
-            <span>Mais</span>
-          </div>
-        </div>
-
-        {/* Repository Performance Radar */}
+        {/* Performance dos repositórios (ScatterChart) */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
             <Target className="w-5 h-5 mr-2 text-orange-400" />
@@ -760,218 +698,6 @@ const UserProfile: React.FC = () => {
           </ResponsiveContainer>
         </div>
       </div>
-
-      {/* Top Repositories Enhanced */}
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-        <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-          <Award className="w-5 h-5 mr-2 text-yellow-400" />
-          Repositórios em Destaque
-        </h3>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {repositories
-            .sort((a, b) => (b.stargazers_count + b.forks_count) - (a.stargazers_count + a.forks_count))
-            .slice(0, 6)
-            .map((repo, index) => (
-              <div key={repo.id} className="bg-slate-700/30 rounded-lg p-4 border border-slate-600 hover:border-blue-500/50 transition-all duration-300 group">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-white group-hover:text-blue-400 transition-colors">
-                        {repo.name}
-                      </h4>
-                      <p className="text-xs text-slate-400">{repo.language || 'Unknown'}</p>
-                    </div>
-                  </div>
-                  <a
-                    href={repo.html_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
-                
-                <p className="text-sm text-slate-300 mb-3 line-clamp-2">
-                  {repo.description || 'Sem descrição disponível'}
-                </p>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1 text-yellow-400">
-                      <Star className="w-3 h-3" />
-                      {repo.stargazers_count}
-                    </span>
-                    <span className="flex items-center gap-1 text-blue-400">
-                      <GitCommit className="w-3 h-3" />
-                      {repo.forks_count}
-                    </span>
-                    <span className="flex items-center gap-1 text-green-400">
-                      <Eye className="w-3 h-3" />
-                      {repo.watchers_count}
-                    </span>
-                  </div>
-                  
-                  <div className="text-xs text-slate-500">
-                    {Math.floor((Date.now() - new Date(repo.updated_at).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
-                  </div>
-                </div>
-                
-                {/* Repository Health Bar */}
-                <div className="mt-3">
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                    <span>Saúde do Repositório</span>
-                    <span>{Math.min(100, repo.stargazers_count + repo.forks_count + repo.watchers_count)}%</span>
-                  </div>
-                  <div className="w-full bg-slate-600 rounded-full h-1.5">
-                    <div 
-                      className="bg-gradient-to-r from-green-500 to-blue-500 h-1.5 rounded-full transition-all duration-1000"
-                      style={{ width: `${Math.min(100, repo.stargazers_count + repo.forks_count + repo.watchers_count)}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-        </div>
-      </div>
-
-      {/* Additional Insights */}
-      {advancedStats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Career Milestones */}
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2 text-green-400" />
-              Marcos da Carreira
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <Calendar className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">Primeiro Repositório</p>
-                  <p className="text-slate-400 text-sm">
-                    {new Date(repositories[repositories.length - 1]?.created_at || '').toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                  <Star className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">Repo Mais Popular</p>
-                  <p className="text-slate-400 text-sm">
-                    {advancedStats.mostStarredRepo} ({advancedStats.mostStarredRepoStars} ★)
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                  <Trophy className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">Streak Mais Longo</p>
-                  <p className="text-slate-400 text-sm">{advancedStats.longestStreak} dias consecutivos</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Development Focus */}
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-              <Target className="w-5 h-5 mr-2 text-blue-400" />
-              Foco de Desenvolvimento
-            </h3>
-            
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-300">Frontend</span>
-                  <span className="text-blue-400">65%</span>
-                </div>
-                <div className="w-full bg-slate-600 rounded-full h-2">
-                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: '65%' }}></div>
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-300">Backend</span>
-                  <span className="text-green-400">45%</span>
-                </div>
-                <div className="w-full bg-slate-600 rounded-full h-2">
-                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '45%' }}></div>
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-300">Mobile</span>
-                  <span className="text-purple-400">30%</span>
-                </div>
-                <div className="w-full bg-slate-600 rounded-full h-2">
-                  <div className="bg-purple-500 h-2 rounded-full" style={{ width: '30%' }}></div>
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-300">DevOps</span>
-                  <span className="text-orange-400">25%</span>
-                </div>
-                <div className="w-full bg-slate-600 rounded-full h-2">
-                  <div className="bg-orange-500 h-2 rounded-full" style={{ width: '25%' }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Community Impact */}
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-              <Heart className="w-5 h-5 mr-2 text-red-400" />
-              Impacto na Comunidade
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-white">{advancedStats.totalStars + advancedStats.totalForks}</p>
-                <p className="text-slate-400 text-sm">Interações Totais</p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div>
-                  <p className="text-lg font-bold text-green-400">{Math.floor(advancedStats.totalStars / advancedStats.totalRepos * 10)}</p>
-                  <p className="text-slate-400 text-xs">Score de Qualidade</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-blue-400">{Math.floor(user.followers / 10)}</p>
-                  <p className="text-slate-400 text-xs">Influência</p>
-                </div>
-              </div>
-              
-              <div className="bg-slate-700/30 rounded-lg p-3 text-center">
-                <p className="text-white font-medium">Rank Estimado</p>
-                <p className="text-yellow-400 text-sm">
-                  {advancedStats.developerScore >= 80 ? 'Expert' :
-                   advancedStats.developerScore >= 60 ? 'Avançado' :
-                   advancedStats.developerScore >= 40 ? 'Intermediário' : 'Iniciante'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
