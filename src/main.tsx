@@ -205,8 +205,7 @@ const AppContent: React.FC = () => {
       id: 'dashboard', 
       label: 'Dashboard', 
       icon: Activity, 
-      description: 'Visão geral completa e métricas avançadas',
-      badge: repositories.length > 0 ? 'NEW' : undefined
+      description: 'Visão geral completa e métricas avançadas'
     },
     { 
       id: 'repositories', 
@@ -226,13 +225,6 @@ const AppContent: React.FC = () => {
       label: 'Perfil', 
       icon: User, 
       description: 'Perfil avançado do desenvolvedor com insights'
-    },
-    { 
-      id: 'analytics', 
-      label: 'Analytics', 
-      icon: BarChart3, 
-      description: 'Análises profundas e relatórios detalhados',
-      premium: true
     },
     { 
       id: 'settings', 
