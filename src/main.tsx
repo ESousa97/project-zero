@@ -1,6 +1,7 @@
 // src/main.tsx
 
 import React, { useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import { GitBranch, Settings, User, Activity } from 'lucide-react';
 
 import Header from './components/Header';
@@ -33,6 +34,11 @@ const App: React.FC = () => {
     { id: 'settings', label: 'Configurações', icon: Settings },
   ];
 
+  // Fix: Create proper handler for view change that accepts ViewType
+  const handleViewChange = (view: string) => {
+    setCurrentView(view as ViewType);
+  };
+
   // Renderiza o conteúdo principal conforme a view atual
   const renderContent = () => {
     switch (currentView) {
@@ -62,7 +68,7 @@ const App: React.FC = () => {
           <Sidebar
             menuItems={menuItems}
             currentView={currentView}
-            onViewChange={setCurrentView}
+            onViewChange={handleViewChange}
             collapsed={sidebarCollapsed}
             onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           />
@@ -80,5 +86,14 @@ const App: React.FC = () => {
     </GitHubProvider>
   );
 };
+
+// Initialize React application
+const container = document.getElementById('root');
+if (container) {
+  const root = createRoot(container);
+  root.render(<App />);
+} else {
+  console.error('Root container not found');
+}
 
 export default App;

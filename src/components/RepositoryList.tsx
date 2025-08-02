@@ -163,7 +163,7 @@ const RepositoryList: React.FC = () => {
             <option value="private">Privados</option>
           </select>
 
-          {/* Language Filter - Fix: Remove null value issue */}
+          {/* Language Filter */}
           <select
             value={languageFilter}
             onChange={(e) => setLanguageFilter(e.target.value)}
@@ -177,7 +177,103 @@ const RepositoryList: React.FC = () => {
         </div>
       </div>
 
-      {/* Rest of the component remains the same... */}
+      {/* Repository List */}
+      {loading && repositories.length === 0 ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-slate-400">Carregando repositórios...</p>
+          </div>
+        </div>
+      ) : filteredRepositories.length > 0 ? (
+        <div className="grid gap-6">
+          {filteredRepositories.map((repo) => (
+            <div key={repo.id} className="group bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 hover:border-blue-300/50 transition-all duration-300 hover:shadow-lg">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-4">
+                    <h3 className="text-xl font-bold text-blue-400 hover:text-blue-300 transition-colors">
+                      <a href={repo.html_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group">
+                        {repo.name}
+                        <ExternalLink className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      </a>
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      {repo.private ? (
+                        <div className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
+                          <Lock className="w-4 h-4" />
+                          Privado
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                          <Unlock className="w-4 h-4" />
+                          Público
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {repo.description && (
+                    <p className="text-slate-300 mb-4 leading-relaxed">{repo.description}</p>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-slate-400">
+                        <Calendar className="w-4 h-4 text-blue-400" />
+                        <span className="font-medium">Criado:</span>
+                        <span>{formatDateTime(repo.created_at)}</span>
+                        <span className="text-blue-400 font-medium">({getTimeAgo(repo.created_at)})</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-400">
+                        <Calendar className="w-4 h-4 text-green-400" />
+                        <span className="font-medium">Atualizado:</span>
+                        <span>{formatDateTime(repo.updated_at)}</span>
+                        <span className="text-green-400 font-medium">({getTimeAgo(repo.updated_at)})</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      {repo.language && (
+                        <div className="flex items-center gap-2">
+                          <div className={`w-4 h-4 ${getLanguageColor(repo.language)} rounded-full`}></div>
+                          <span className="text-sm font-medium text-slate-300">{repo.language}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-4 text-sm text-slate-400">
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 text-yellow-400" />
+                          <span className="font-medium">{repo.stargazers_count}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <GitCommit className="w-4 h-4 text-blue-400" />
+                          <span className="font-medium">{repo.forks_count}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Eye className="w-4 h-4 text-purple-400" />
+                          <span className="font-medium">{repo.watchers_count}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-xs text-slate-500 bg-slate-700/30 rounded-lg p-3 border border-slate-600">
+                    <strong>Nome completo:</strong> {repo.full_name}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <GitBranch className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-slate-400 mb-2">Nenhum repositório encontrado</h3>
+          <p className="text-slate-500">
+            {searchTerm ? 'Tente ajustar os filtros de busca' : 'Nenhum repositório corresponde aos filtros selecionados'}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

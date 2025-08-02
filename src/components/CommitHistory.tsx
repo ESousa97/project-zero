@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { GitCommit, Calendar, User, ExternalLink, Search, Hash, Plus, Minus } from 'lucide-react';
 import { useGitHub } from '../context/GitHubContext';
+import type { Commit } from '../types/github';
 
 // Add proper types
 type TimeFilter = 'all' | 'day' | 'week' | 'month';
@@ -11,30 +12,6 @@ interface CommitStats {
   additions: number;
   deletions: number;
   total: number;
-}
-
-// Define proper commit type (extend as needed)
-interface CommitData {
-  sha: string;
-  html_url: string;
-  commit: {
-    message: string;
-    author: {
-      name: string;
-      email: string;
-      date: string;
-    };
-    committer: {
-      name: string;
-      email: string;
-      date: string;
-    };
-  };
-  author?: {
-    login: string;
-    avatar_url: string;
-  };
-  stats?: CommitStats;
 }
 
 const CommitHistory: React.FC = () => {
@@ -110,8 +87,8 @@ const CommitHistory: React.FC = () => {
     return `${Math.floor(diffInSeconds / 31536000)}a atrás`;
   };
 
-  // Fix: Replace 'any' with proper type
-  const getCommitStats = (commit: CommitData): CommitStats | null => {
+  // Fix: Use Commit type directly instead of CommitData
+  const getCommitStats = (commit: Commit): CommitStats | null => {
     if (commit.stats) {
       return {
         additions: commit.stats.additions,
@@ -213,7 +190,6 @@ const CommitHistory: React.FC = () => {
         </div>
       )}
 
-      {/* Rest of component remains the same... */}
       {/* Commits List */}
       {loading && commits.length === 0 ? (
         <div className="flex items-center justify-center h-64">
