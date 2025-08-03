@@ -1,12 +1,15 @@
-// src/components/CommitHistory/CommitFilters.tsx - Layout Melhorado
+// src/components/CommitHistory/CommitFilters.tsx - ATUALIZADO
 import React from 'react';
-import { Search, BarChart3, Filter, RotateCcw, Users, Calendar, SortAsc } from 'lucide-react';
-import type { CommitFiltersState } from './types';
+import { Search, BarChart3, Filter, RotateCcw, Users, SortAsc, Clock } from 'lucide-react';
+import type { CommitFiltersState, TimeFilter } from './types';
+import { getTimeFilterLabel } from './types';
 
 interface CommitFiltersProps {
   filters: CommitFiltersState;
   uniqueAuthors: string[];
   showAnalytics: boolean;
+  totalFilteredCount: number;
+  isFiltered: boolean;
   onUpdateFilter: (key: keyof CommitFiltersState, value: string) => void;
   onToggleAnalytics: () => void;
   onResetFilters: () => void;
@@ -16,15 +19,67 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
   filters,
   uniqueAuthors,
   showAnalytics,
+  totalFilteredCount,
+  isFiltered,
   onUpdateFilter,
   onToggleAnalytics,
   onResetFilters
 }) => {
-  // Verificar se há filtros aplicados
-  const hasActiveFilters = filters.searchTerm || 
-                          filters.selectedAuthor !== 'all' || 
-                          filters.timeFilter !== 'all' ||
-                          filters.sortBy !== 'date';
+  // Grupos de filtros de tempo organizados
+  const timeFilterGroups = [
+    {
+      label: 'Tempo Real',
+      options: [
+        { value: 'seconds-30' as TimeFilter, label: 'Últimos 30 segundos' },
+        { value: 'seconds-60' as TimeFilter, label: 'Último minuto' },
+      ]
+    },
+    {
+      label: 'Minutos',
+      options: [
+        { value: 'minutes-5' as TimeFilter, label: '5 minutos' },
+        { value: 'minutes-15' as TimeFilter, label: '15 minutos' },
+        { value: 'minutes-30' as TimeFilter, label: '30 minutos' },
+        { value: 'minutes-60' as TimeFilter, label: '1 hora' },
+      ]
+    },
+    {
+      label: 'Horas',
+      options: [
+        { value: 'hours-1' as TimeFilter, label: '1 hora' },
+        { value: 'hours-6' as TimeFilter, label: '6 horas' },
+        { value: 'hours-12' as TimeFilter, label: '12 horas' },
+        { value: 'hours-24' as TimeFilter, label: '1 dia' },
+      ]
+    },
+    {
+      label: 'Dias',
+      options: [
+        { value: 'days-1' as TimeFilter, label: '1 dia' },
+        { value: 'days-3' as TimeFilter, label: '3 dias' },
+        { value: 'days-7' as TimeFilter, label: '1 semana' },
+      ]
+    },
+    {
+      label: 'Semanas/Meses',
+      options: [
+        { value: 'weeks-1' as TimeFilter, label: '1 semana' },
+        { value: 'weeks-2' as TimeFilter, label: '2 semanas' },
+        { value: 'weeks-4' as TimeFilter, label: '1 mês' },
+        { value: 'months-1' as TimeFilter, label: '1 mês' },
+        { value: 'months-2' as TimeFilter, label: '2 meses' },
+        { value: 'months-3' as TimeFilter, label: '3 meses' },
+        { value: 'months-6' as TimeFilter, label: '6 meses' },
+      ]
+    },
+    {
+      label: 'Anos',
+      options: [
+        { value: 'years-1' as TimeFilter, label: '1 ano' },
+        { value: 'years-2' as TimeFilter, label: '2 anos' },
+      ]
+    }
+  ];
 
   const activeFilterCount = [
     filters.searchTerm,
@@ -39,10 +94,15 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Filter className="w-5 h-5 text-blue-400" />
-          <h3 className="text-lg font-semibold text-white">Filtros e Busca</h3>
+          <h3 className="text-lg font-semibold text-white">Filtros Avançados de Tempo</h3>
           {activeFilterCount > 0 && (
             <span className="bg-blue-600/20 text-blue-400 px-2 py-1 rounded-full text-xs font-medium">
               {activeFilterCount} filtro{activeFilterCount > 1 ? 's' : ''} ativo{activeFilterCount > 1 ? 's' : ''}
+            </span>
+          )}
+          {totalFilteredCount > 0 && (
+            <span className="bg-green-600/20 text-green-400 px-2 py-1 rounded-full text-xs font-medium">
+              {totalFilteredCount} commits encontrados
             </span>
           )}
         </div>
@@ -62,7 +122,7 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
           </button>
 
           {/* Reset Filters */}
-          {hasActiveFilters && (
+          {isFiltered && (
             <button
               onClick={onResetFilters}
               className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-red-600/20 text-slate-300 hover:text-red-400 rounded-lg font-medium transition-all duration-200 border border-slate-600 hover:border-red-500/50"
@@ -94,11 +154,11 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
           </div>
         </div>
 
-        {/* Time Filter */}
+        {/* Time Filter - Mais detalhado */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
-            <Calendar className="w-4 h-4 text-green-400" />
-            Período
+            <Clock className="w-4 h-4 text-green-400" />
+            Intervalo de Tempo
           </label>
           <select
             value={filters.timeFilter}
@@ -106,11 +166,15 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
             className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
           >
             <option value="all">Todos os períodos</option>
-            <option value="hour">Última hora</option>
-            <option value="day">Último dia</option>
-            <option value="week">Última semana</option>
-            <option value="month">Último mês</option>
-            <option value="year">Último ano</option>
+            {timeFilterGroups.map(group => (
+              <optgroup key={group.label} label={group.label}>
+                {group.options.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
         </div>
 
@@ -152,8 +216,26 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
         </div>
       </div>
 
+      {/* Current Filter Display */}
+      {filters.timeFilter !== 'all' && (
+        <div className="bg-blue-600/10 border border-blue-500/20 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3">
+            <Clock className="w-5 h-5 text-blue-400" />
+            <div>
+              <h4 className="text-blue-400 font-medium">Filtro de Tempo Ativo</h4>
+              <p className="text-slate-300 text-sm">
+                Exibindo commits dos: <strong>{getTimeFilterLabel(filters.timeFilter)}</strong>
+              </p>
+              <p className="text-slate-400 text-xs mt-1">
+                {totalFilteredCount} commits encontrados neste período
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Active Filters Summary */}
-      {hasActiveFilters && (
+      {isFiltered && (
         <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-slate-300">Filtros ativos:</span>
@@ -186,8 +268,8 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
             
             {filters.timeFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 bg-purple-600/20 text-purple-400 px-3 py-1 rounded-full text-xs font-medium">
-                <Calendar className="w-3 h-3" />
-                Período: {filters.timeFilter}
+                <Clock className="w-3 h-3" />
+                {getTimeFilterLabel(filters.timeFilter)}
                 <button
                   onClick={() => onUpdateFilter('timeFilter', 'all')}
                   className="ml-1 hover:bg-purple-600/30 rounded-full p-0.5 transition-colors"
@@ -214,15 +296,15 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
       )}
 
       {/* Quick Actions */}
-      {!hasActiveFilters && (
+      {!isFiltered && (
         <div className="bg-slate-700/20 rounded-lg p-4 border border-slate-600/50">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-sm font-medium text-slate-300 mb-1">Ações rápidas</h4>
-              <p className="text-xs text-slate-400">Use os filtros acima para refinar sua pesquisa</p>
+              <h4 className="text-sm font-medium text-slate-300 mb-1">Filtros Avançados Disponíveis</h4>
+              <p className="text-xs text-slate-400">Use os filtros acima para análises precisas por período</p>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span>Dica: Use Ctrl+F para busca rápida</span>
+              <span>💡 Dica: Teste filtros de tempo real para commits recentes</span>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-// src/components/CommitHistory/index.ts - CORRIGIDO
+// src/components/CommitHistory/index.ts - ATUALIZADO
 // Exportar apenas o componente principal
 export { default } from './CommitHistory';
 
@@ -15,5 +15,12 @@ export type {
   CommitFiltersState, 
   CommitAnalytics as CommitAnalyticsType, 
   ViewMode, 
-  CommitType 
+  CommitType,
+  TimeFilter
+} from './types';
+
+// Exportar utilitários de tipos
+export { 
+  getTimeFilterMilliseconds, 
+  getTimeFilterLabel 
 } from './types';

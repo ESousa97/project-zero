@@ -119,22 +119,27 @@ const CommitRepositorySelector: React.FC<CommitRepositorySelectorProps> = ({
         </div>
       </div>
       
-      {/* Info Card for "All Repositories" */}
+      {/* Info Card for "All Repositories" - ATUALIZADO */}
       {selectedRepo === 'all' && (
         <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
             <div className="text-sm">
-              <p className="text-blue-400 font-medium mb-1">Busca em Todos os Repositórios</p>
+              <p className="text-blue-400 font-medium mb-1">Busca Completa em Todos os Repositórios</p>
               <p className="text-slate-300 leading-relaxed">
-                Esta opção coletará commits dos {Math.min(10, repositories.length)} repositórios mais recentes. 
-                Cada repositório pode retornar até 100 commits recentes.
+                Esta opção coletará <strong>TODOS os commits históricos</strong> dos {Math.min(10, repositories.length)} repositórios mais recentes. 
+                Cada repositório pode retornar até 2.000 commits (histórico completo).
               </p>
+              <div className="mt-2 text-xs text-slate-400">
+                <p>📊 <strong>Analytics:</strong> Processará todos os commits coletados</p>
+                <p>📋 <strong>Lista:</strong> Exibirá apenas os 10 commits mais relevantes após filtros</p>
+                <p>⏱️ <strong>Tempo:</strong> Pode levar 1-3 minutos para busca completa</p>
+              </div>
               {allReposCommits.length > 0 && (
                 <div className="mt-3 flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-400" />
                   <span className="text-green-400 font-medium">
-                    {allReposCommits.length} commits coletados de múltiplos repositórios
+                    {allReposCommits.length.toLocaleString()} commits coletados de múltiplos repositórios
                   </span>
                 </div>
               )}

@@ -1,9 +1,11 @@
-// src/components/CommitHistory/hooks/useCommitAnalytics.ts
+// src/components/CommitHistory/hooks/useCommitAnalytics.ts - CORRIGIDO
 import { useMemo } from 'react';
 import type { ExtendedCommit, CommitAnalytics } from '../types';
 
 export const useCommitAnalytics = (commits: ExtendedCommit[]): CommitAnalytics => {
   return useMemo(() => {
+    console.log(`🔍 Processando analytics para ${commits.length} commits filtrados`);
+    
     if (!commits.length) return {
       totalCommits: 0,
       totalAuthors: 0,
@@ -22,9 +24,11 @@ export const useCommitAnalytics = (commits: ExtendedCommit[]): CommitAnalytics =
     const dailyStats: { [key: string]: { commits: number; additions: number; deletions: number } } = {};
     const hourStats: { [key: number]: number } = {};
     const dayStats: { [key: string]: number } = {};
+    const commitTypeStats: { [key: string]: number } = {};
 
     let totalAdditions = 0;
     let totalDeletions = 0;
+    const commitDates: Date[] = [];
 
     commits.forEach(commit => {
       const author = commit.commit.author.name;
@@ -32,6 +36,10 @@ export const useCommitAnalytics = (commits: ExtendedCommit[]): CommitAnalytics =
       const dateKey = date.toISOString().split('T')[0];
       const hour = date.getHours();
       const dayOfWeek = date.toLocaleDateString('pt-BR', { weekday: 'long' });
+      const commitType = commit.commitType || 'other';
+
+      // Rastrear período de tempo dos commits
+      commitDates.push(date);
 
       // Estatísticas por autor
       if (!authorStats[author]) {
@@ -49,27 +57,35 @@ export const useCommitAnalytics = (commits: ExtendedCommit[]): CommitAnalytics =
       dailyStats[dateKey].additions += commit.stats?.additions || 0;
       dailyStats[dateKey].deletions += commit.stats?.deletions || 0;
 
-      // Estatísticas por hora
+      // Estatísticas por hora do dia
       hourStats[hour] = (hourStats[hour] || 0) + 1;
 
       // Estatísticas por dia da semana
       dayStats[dayOfWeek] = (dayStats[dayOfWeek] || 0) + 1;
 
+      // Estatísticas por tipo de commit
+      commitTypeStats[commitType] = (commitTypeStats[commitType] || 0) + 1;
+
+      // Totais
       totalAdditions += commit.stats?.additions || 0;
       totalDeletions += commit.stats?.deletions || 0;
     });
 
+    // Calcular autor mais ativo
     const mostActiveAuthor = Object.entries(authorStats)
       .sort((a, b) => b[1].commits - a[1].commits)[0]?.[0] || '';
 
+    // Calcular dia da semana mais ativo
     const mostActiveDay = Object.entries(dayStats)
       .sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 
+    // Distribuição por hora do dia (0-23)
     const timeDistribution = Array.from({ length: 24 }, (_, hour) => ({
       hour,
       count: hourStats[hour] || 0
     }));
 
+    // Atividade diária - usar apenas os dados reais dos commits filtrados
     const dailyActivity = Object.entries(dailyStats)
       .map(([date, stats]) => ({
         date,
@@ -77,13 +93,20 @@ export const useCommitAnalytics = (commits: ExtendedCommit[]): CommitAnalytics =
         additions: stats.additions,
         deletions: stats.deletions
       }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-30);
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    const dayRange = dailyActivity.length > 0 ? dailyActivity.length : 1;
-    const avgCommitsPerDay = commits.length / dayRange;
+    // Calcular média de commits por dia baseada no período real dos dados
+    let avgCommitsPerDay = 0;
+    if (commitDates.length > 0) {
+      const sortedDates = commitDates.sort((a, b) => a.getTime() - b.getTime());
+      const earliestDate = sortedDates[0];
+      const latestDate = sortedDates[sortedDates.length - 1];
+      
+      const daysDifference = Math.max(1, Math.ceil((latestDate.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24)));
+      avgCommitsPerDay = commits.length / daysDifference;
+    }
 
-    return {
+    const analytics = {
       totalCommits: commits.length,
       totalAuthors: Object.keys(authorStats).length,
       totalAdditions,
@@ -91,10 +114,14 @@ export const useCommitAnalytics = (commits: ExtendedCommit[]): CommitAnalytics =
       avgCommitsPerDay,
       mostActiveAuthor,
       mostActiveDay,
-      commitFrequency: dayStats,
+      commitFrequency: { ...dayStats, ...commitTypeStats }, // Combinar ambos
       authorStats,
       timeDistribution,
       dailyActivity
     };
+
+    console.log(`✅ Analytics processado: ${analytics.totalCommits} commits, ${analytics.totalAuthors} autores, período de ${dailyActivity.length} dias`);
+    
+    return analytics;
   }, [commits]);
 };

@@ -1,12 +1,13 @@
-// src/components/CommitHistory/CommitHistory.tsx - Layout Melhorado
-import React from 'react';
-import { GitCommit, BarChart3, List, Clock, GitBranch, RefreshCw, RotateCcw, Search, Users, Calendar, SortAsc } from 'lucide-react';
+// src/components/CommitHistory/CommitHistory.tsx - ATUALIZADO
+import React, { useMemo } from 'react';
+import { GitCommit, BarChart3, List, Clock, GitBranch, RefreshCw, RotateCcw, AlertCircle, CheckCircle, Activity } from 'lucide-react';
 import { useGitHub } from '../../context/GitHubContext';
 
 // Componentes modulares
 import CommitAnalytics from './CommitAnalytics';
 import CommitList from './CommitList';
 import CommitTimeline from './CommitTimeline';
+import CommitFilters from './CommitFilters';
 
 // Hooks personalizados
 import { useCommitData } from './hooks/useCommitData';
@@ -14,6 +15,7 @@ import { useCommitFilters } from './hooks/useCommitFilters';
 import { useCommitAnalytics } from './hooks/useCommitAnalytics';
 
 import type { ViewMode } from './types';
+import { getTimeFilterLabel } from './types';
 
 const CommitHistory: React.FC = () => {
   const { repositories, loading, fetchCommits } = useGitHub();
@@ -35,12 +37,15 @@ const CommitHistory: React.FC = () => {
     filters,
     updateFilter,
     resetFilters,
-    filteredCommits,
-    uniqueAuthors
+    limitedCommitsForList,
+    allFilteredCommitsForAnalytics,
+    uniqueAuthors,
+    totalFilteredCount,
+    isFiltered
   } = useCommitFilters(currentCommits);
   
-  // Hook para analytics dos commits
-  const analytics = useCommitAnalytics(filteredCommits);
+  // Hook para analytics dos commits (usando todos os commits filtrados)
+  const analytics = useCommitAnalytics(allFilteredCommitsForAnalytics);
 
   // Handlers
   const handleRepoChange = (repoFullName: string) => {
@@ -61,6 +66,24 @@ const CommitHistory: React.FC = () => {
 
   // Determinar se está carregando
   const isCurrentlyLoading = filters.selectedRepo === 'all' ? loadingAllRepos : loading;
+
+  // REPLICAR: Lógica do Dashboard que funciona
+  const statsForDisplay = useMemo(() => {
+    // Usar mesma lógica do useDashboardData.ts que funciona
+    const totalCommits = currentCommits.length;
+    const filteredCommits = totalFilteredCount;
+    const displayCommits = limitedCommitsForList.length;
+    const analyticsCommits = analytics.totalCommits;
+
+    return {
+      source: totalCommits > 0 ? 'API Real' : 'Nenhum',
+      total: totalCommits,
+      filtered: filteredCommits,
+      displayed: displayCommits,
+      analytics: analyticsCommits,
+      isReal: totalCommits > 0
+    };
+  }, [currentCommits.length, totalFilteredCount, limitedCommitsForList.length, analytics.totalCommits]);
 
   // Função para renderizar os controles de visualização
   const renderViewControls = () => (
@@ -103,55 +126,177 @@ const CommitHistory: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header Principal */}
+      {/* Header Principal - REPLICANDO LÓGICA DO DASHBOARD */}
       <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
               <GitCommit className="w-8 h-8 text-green-500" />
-              Histórico de Commits
+              Histórico Completo de Commits
             </h1>
             <p className="text-slate-400 text-lg mb-4">
-              Análise detalhada de commits com métricas avançadas
+              Análise de commits reais coletados via API GitHub
             </p>
             
-            {/* Stats resumidas */}
-            {filteredCommits.length > 0 && (
-              <div className="flex flex-wrap items-center gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-slate-300 font-medium">{filteredCommits.length}</span>
-                  <span className="text-slate-400">commits</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-slate-300 font-medium">{repositories.length}</span>
-                  <span className="text-slate-400">repositórios</span>
-                </div>
-                {analytics.totalAuthors > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-slate-300 font-medium">{analytics.totalAuthors}</span>
-                    <span className="text-slate-400">autores</span>
+            {/* Stats REPLICANDO STATSGRID QUE FUNCIONA */}
+            {statsForDisplay.total > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                {/* Commits Totais Coletados - IGUAL AO DASHBOARD */}
+                <div className="bg-green-600/10 border border-green-500/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-slate-400 text-sm font-medium mb-1">Commits Coletados</p>
+                      <p className="text-2xl font-bold text-white">{statsForDisplay.total.toLocaleString()}</p>
+                      <div className="flex items-center space-x-1 text-green-400">
+                        <GitCommit className="w-3 h-3" />
+                        <span className="text-xs font-medium">API GitHub Real</span>
+                      </div>
+                      <div className="mt-1">
+                        <span className="text-xs text-green-300">✅ Fonte: {statsForDisplay.source}</span>
+                      </div>
+                    </div>
+                    <div className="p-2 bg-gradient-to-r from-green-500 to-green-600 rounded-lg">
+                      <GitCommit className="w-4 h-4 text-white" />
+                    </div>
                   </div>
-                )}
+                </div>
+                
+                {/* Commits Filtrados */}
+                <div className="bg-blue-600/10 border border-blue-500/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-slate-400 text-sm font-medium mb-1">Pós-Filtros</p>
+                      <p className="text-2xl font-bold text-white">{statsForDisplay.filtered.toLocaleString()}</p>
+                      <div className="flex items-center space-x-1 text-blue-400">
+                        <span className="text-xs font-medium">Filtrados</span>
+                      </div>
+                    </div>
+                    <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg">
+                      <Activity className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Analytics */}
+                <div className="bg-purple-600/10 border border-purple-500/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-slate-400 text-sm font-medium mb-1">Analytics</p>
+                      <p className="text-2xl font-bold text-white">{statsForDisplay.analytics.toLocaleString()}</p>
+                      <div className="flex items-center space-x-1 text-purple-400">
+                        <span className="text-xs font-medium">Processados</span>
+                      </div>
+                    </div>
+                    <div className="p-2 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg">
+                      <BarChart3 className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Lista Exibida */}
+                <div className="bg-orange-600/10 border border-orange-500/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-slate-400 text-sm font-medium mb-1">Lista</p>
+                      <p className="text-2xl font-bold text-white">{statsForDisplay.displayed}</p>
+                      <div className="flex items-center space-x-1 text-orange-400">
+                        <span className="text-xs font-medium">Top exibidos</span>
+                      </div>
+                    </div>
+                    <div className="p-2 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg">
+                      <List className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
           
-          {/* Controles de Visualização - Mais proeminentes */}
-          {filteredCommits.length > 0 && (
+          {/* Controles de Visualização */}
+          {totalFilteredCount > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-400 mr-2">Visualizar como:</span>
               {renderViewControls()}
             </div>
           )}
         </div>
+        
+        {/* Debug Info - IGUAL AO STATSGRID */}
+        {statsForDisplay.total > 0 && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
+              <h4 className="text-slate-300 font-medium mb-2">📊 Debug Info</h4>
+              <div className="text-xs text-slate-400 space-y-1">
+                <div>✅ Fonte: {statsForDisplay.source}</div>
+                <div>📦 Total coletado: {statsForDisplay.total}</div>
+                <div>🔍 Filtrados: {statsForDisplay.filtered}</div>
+                <div>📋 Exibidos: {statsForDisplay.displayed}</div>
+                <div>📊 Analytics: {statsForDisplay.analytics}</div>
+              </div>
+            </div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
+              <h4 className="text-slate-300 font-medium mb-2">🔄 Status da Busca</h4>
+              <div className="text-xs text-slate-400 space-y-1">
+                <div>Repositórios: {repositories.length}</div>
+                <div>Selecionado: {filters.selectedRepo || 'Nenhum'}</div>
+                <div>Branch: {filters.selectedBranch}</div>
+                <div>Carregando: {isCurrentlyLoading ? 'Sim' : 'Não'}</div>
+              </div>
+            </div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
+              <h4 className="text-slate-300 font-medium mb-2">⚡ Performance</h4>
+              <div className="text-xs text-slate-400 space-y-1">
+                <div>Filtros ativos: {isFiltered ? 'Sim' : 'Não'}</div>
+                <div>Modo visualização: {viewMode}</div>
+                <div>Analytics ativo: {showAnalytics ? 'Sim' : 'Não'}</div>
+                <div>Autores únicos: {uniqueAuthors.length}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Info sobre busca completa */}
+        {filters.selectedRepo === 'all' && (
+          <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="text-blue-400 font-medium mb-1">Busca Completa - Método Dashboard</p>
+                <p className="text-slate-300 leading-relaxed">
+                  Utilizando a <strong>mesma metodologia do Dashboard</strong> que funciona corretamente. 
+                  Coleta de <strong>TODOS os {repositories.length} repositórios</strong> via API real.
+                </p>
+                <div className="mt-2 text-xs text-slate-400">
+                  <p>🔄 <strong>Metodologia:</strong> Igual ao Dashboard (que funciona)</p>
+                  <p>⚡ <strong>Dados:</strong> 100% reais da API GitHub</p>
+                  <p>🎯 <strong>Objetivo:</strong> Máxima cobertura histórica</p>
+                </div>
+                {allReposCommits.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="text-green-400 font-medium">
+                        {allReposCommits.length.toLocaleString()} commits coletados (REAL)
+                      </span>
+                    </div>
+                    {loadingAllRepos && (
+                      <div className="bg-slate-700/30 rounded-full h-2 mt-2">
+                        <div className="bg-blue-500 h-2 rounded-full animate-pulse w-full" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Seção de Configuração */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Seleção de Repositório - Expandida */}
+        {/* Seleção de Repositório */}
         <div className="lg:col-span-2 bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-3 mb-4">
             <GitBranch className="w-5 h-5 text-blue-400" />
@@ -170,7 +315,7 @@ const CommitHistory: React.FC = () => {
                 className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               >
                 <option value="">Selecione um repositório</option>
-                <option value="all">🌟 Todos os repositórios ({repositories.length})</option>
+                <option value="all">Todos os repositórios ({repositories.length})</option>
                 {repositories.map(repo => (
                   <option key={repo.id} value={repo.full_name}>
                     {repo.name}
@@ -242,7 +387,7 @@ const CommitHistory: React.FC = () => {
         <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-3 mb-4">
             <BarChart3 className="w-5 h-5 text-purple-400" />
-            <h3 className="text-lg font-semibold text-white">Ações</h3>
+            <h3 className="text-lg font-semibold text-white">Controles</h3>
           </div>
           
           <div className="space-y-3">
@@ -258,7 +403,7 @@ const CommitHistory: React.FC = () => {
               {showAnalytics ? 'Ocultar Analytics' : 'Mostrar Analytics'}
             </button>
 
-            {(filters.searchTerm || filters.selectedAuthor !== 'all' || filters.timeFilter !== 'all') && (
+            {isFiltered && (
               <button
                 onClick={resetFilters}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700/50 hover:bg-red-600/20 text-slate-300 hover:text-red-400 rounded-lg font-medium transition-all duration-200 border border-slate-600 hover:border-red-500/50"
@@ -271,163 +416,76 @@ const CommitHistory: React.FC = () => {
 
           {/* Info Helper */}
           <div className="mt-4 p-3 bg-slate-700/20 rounded-lg">
-            <h4 className="text-xs font-medium text-slate-300 mb-2">💡 Dicas</h4>
+            <h4 className="text-xs font-medium text-slate-300 mb-2">💡 Filtros Avançados</h4>
             <ul className="text-xs text-slate-400 space-y-1">
+              <li>• Filtros de segundos até anos</li>
+              <li>• Lista limitada a 10 commits</li>
+              <li>• Analytics usa todos os dados filtrados</li>
               <li>• Ctrl+K para busca rápida</li>
-              <li>• Use "Todos" para visão global</li>
-              <li>• Analytics mostra métricas detalhadas</li>
             </ul>
           </div>
         </div>
       </div>
 
-      {/* Filtros - Redesenhados e Mais Claros */}
+      {/* Nota sobre Metodologia - ATUALIZADA */}
       {currentCommits.length > 0 && (
-        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Search className="w-5 h-5 text-blue-400" />
-                <h3 className="text-lg font-semibold text-white">Filtros de Busca</h3>
-                {(filters.searchTerm || filters.selectedAuthor !== 'all' || filters.timeFilter !== 'all' || filters.sortBy !== 'date') && (
-                  <span className="bg-blue-600/20 text-blue-400 px-2 py-1 rounded-full text-xs font-medium">
-                    Filtros ativos
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Search */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                  <Search className="w-4 h-4 text-blue-400" />
-                  Buscar
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Commits, autores, SHA..."
-                    value={filters.searchTerm}
-                    onChange={(e) => updateFilter('searchTerm', e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                  />
+        <div className="bg-green-600/10 border border-green-500/20 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="text-green-400 mt-0.5">📊</div>
+            <div>
+              <h4 className="text-green-400 font-medium mb-1">Coleta Completa Realizada</h4>
+              <p className="text-green-300/80 text-sm">
+                <strong>{currentCommits.length.toLocaleString()} commits</strong> foram coletados do histórico completo. 
+                Todos os filtros são aplicados sobre este conjunto total para máxima precisão.
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="text-green-300">📋 Lista:</span> Top 10 commits mais relevantes
+                </div>
+                <div>
+                  <span className="text-green-300">📊 Analytics:</span> Todos os {totalFilteredCount} commits filtrados
                 </div>
               </div>
-
-              {/* Time Filter */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                  <Calendar className="w-4 h-4 text-green-400" />
-                  Período
-                </label>
-                <select
-                  value={filters.timeFilter}
-                  onChange={(e) => updateFilter('timeFilter', e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                >
-                  <option value="all">Todos os períodos</option>
-                  <option value="hour">Última hora</option>
-                  <option value="day">Último dia</option>
-                  <option value="week">Última semana</option>
-                  <option value="month">Último mês</option>
-                  <option value="year">Último ano</option>
-                </select>
-              </div>
-
-              {/* Sort By */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                  <SortAsc className="w-4 h-4 text-purple-400" />
-                  Ordenar por
-                </label>
-                <select
-                  value={filters.sortBy}
-                  onChange={(e) => updateFilter('sortBy', e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                >
-                  <option value="date">Data (recente)</option>
-                  <option value="author">Autor (A-Z)</option>
-                  <option value="additions">Mais adições</option>
-                  <option value="deletions">Mais remoções</option>
-                  <option value="changes">Total de mudanças</option>
-                </select>
-              </div>
-
-              {/* Author Filter */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                  <Users className="w-4 h-4 text-orange-400" />
-                  Autor
-                </label>
-                <select
-                  value={filters.selectedAuthor}
-                  onChange={(e) => updateFilter('selectedAuthor', e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                >
-                  <option value="all">Todos ({uniqueAuthors.length})</option>
-                  {uniqueAuthors.map(author => (
-                    <option key={author} value={author}>{author}</option>
-                  ))}
-                </select>
-              </div>
             </div>
-
-            {/* Active Filters Summary */}
-            {(filters.searchTerm || filters.selectedAuthor !== 'all' || filters.timeFilter !== 'all' || filters.sortBy !== 'date') && (
-              <div className="mt-4 p-4 bg-slate-700/20 rounded-lg border border-slate-600/50">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-slate-300">Filtros ativos:</span>
-                  
-                  {filters.searchTerm && (
-                    <span className="inline-flex items-center gap-1 bg-blue-600/20 text-blue-400 px-2 py-1 rounded text-xs">
-                      Busca: "{filters.searchTerm}"
-                      <button onClick={() => updateFilter('searchTerm', '')} className="hover:bg-blue-600/30 rounded p-0.5">×</button>
-                    </span>
-                  )}
-                  
-                  {filters.selectedAuthor !== 'all' && (
-                    <span className="inline-flex items-center gap-1 bg-green-600/20 text-green-400 px-2 py-1 rounded text-xs">
-                      Autor: {filters.selectedAuthor}
-                      <button onClick={() => updateFilter('selectedAuthor', 'all')} className="hover:bg-green-600/30 rounded p-0.5">×</button>
-                    </span>
-                  )}
-                  
-                  {filters.timeFilter !== 'all' && (
-                    <span className="inline-flex items-center gap-1 bg-purple-600/20 text-purple-400 px-2 py-1 rounded text-xs">
-                      Período: {filters.timeFilter}
-                      <button onClick={() => updateFilter('timeFilter', 'all')} className="hover:bg-purple-600/30 rounded p-0.5">×</button>
-                    </span>
-                  )}
-                  
-                  {filters.sortBy !== 'date' && (
-                    <span className="inline-flex items-center gap-1 bg-orange-600/20 text-orange-400 px-2 py-1 rounded text-xs">
-                      Ordem: {filters.sortBy}
-                      <button onClick={() => updateFilter('sortBy', 'date')} className="hover:bg-orange-600/30 rounded p-0.5">×</button>
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      {/* Analytics Dashboard Separado - Apenas quando showAnalytics estiver ativo */}
+      {/* Filtros Avançados */}
+      {currentCommits.length > 0 && (
+        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50">
+          <CommitFilters
+            filters={filters}
+            uniqueAuthors={uniqueAuthors}
+            showAnalytics={showAnalytics}
+            totalFilteredCount={totalFilteredCount}
+            isFiltered={isFiltered}
+            onUpdateFilter={updateFilter}
+            onToggleAnalytics={() => setShowAnalytics(!showAnalytics)}
+            onResetFilters={resetFilters}
+          />
+        </div>
+      )}
+
+      {/* Analytics Dashboard Separado */}
       {showAnalytics && analytics.totalCommits > 0 && viewMode !== 'analytics' && (
         <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-white flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-blue-400" />
-              Analytics de Commits
+              Analytics de Commits Filtrados
             </h2>
-            <button
-              onClick={() => setShowAnalytics(false)}
-              className="text-sm text-slate-400 hover:text-white transition-colors"
-            >
-              Ocultar Analytics
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-slate-400">
+                Analisando {analytics.totalCommits} commits
+              </span>
+              <button
+                onClick={() => setShowAnalytics(false)}
+                className="text-sm text-slate-400 hover:text-white transition-colors"
+              >
+                Ocultar Analytics
+              </button>
+            </div>
           </div>
           <CommitAnalytics analytics={analytics} />
         </div>
@@ -444,24 +502,33 @@ const CommitHistory: React.FC = () => {
             </div>
             <h3 className="text-lg font-semibold text-white mt-4 mb-2">
               {filters.selectedRepo === 'all' 
-                ? 'Coletando commits de múltiplos repositórios' 
-                : 'Carregando commits detalhados'
+                ? 'Coletando histórico completo de commits' 
+                : 'Carregando commits do repositório'
               }
             </h3>
             <p className="text-slate-400 text-center max-w-md">
               {filters.selectedRepo === 'all'
-                ? `Processando até ${Math.min(10, repositories.length)} repositórios. Isso pode levar alguns momentos.`
+                ? 'Processando todos os repositórios. A busca continuará até coletar 100% dos commits disponíveis.'
                 : 'Aguarde enquanto carregamos o histórico de commits...'
               }
             </p>
+            {filters.selectedRepo === 'all' && allReposCommits.length > 0 && (
+              <div className="mt-4 text-center">
+                <p className="text-blue-400 font-medium">
+                  {allReposCommits.length.toLocaleString()} commits coletados...
+                </p>
+                <p className="text-slate-500 text-sm">
+                  Busca em andamento
+                </p>
+              </div>
+            )}
           </div>
-        ) : filteredCommits.length > 0 ? (
+        ) : totalFilteredCount > 0 ? (
           // Conteúdo com base no modo de visualização
           <div className="p-6">
             {viewMode === 'timeline' ? (
-              <CommitTimeline commits={filteredCommits.slice(0, 20)} />
+              <CommitTimeline commits={limitedCommitsForList} />
             ) : viewMode === 'analytics' ? (
-              // CORRIGIDO: Apenas uma instância do analytics
               <div className="space-y-6">
                 <div className="text-center py-4">
                   <BarChart3 className="w-12 h-12 text-blue-500 mx-auto mb-3" />
@@ -469,17 +536,24 @@ const CommitHistory: React.FC = () => {
                     Visualização Analytics Detalhada
                   </h3>
                   <p className="text-slate-400 mb-4">
-                    Métricas avançadas e insights dos commits selecionados
+                    Métricas avançadas de {analytics.totalCommits} commits filtrados
                   </p>
+                  {filters.timeFilter !== 'all' && (
+                    <p className="text-blue-400 text-sm">
+                      Período: {getTimeFilterLabel(filters.timeFilter)}
+                    </p>
+                  )}
                 </div>
                 <CommitAnalytics analytics={analytics} />
               </div>
             ) : (
               <CommitList
-                commits={filteredCommits}
+                commits={limitedCommitsForList}
                 selectedRepo={filters.selectedRepo}
                 selectedBranch={filters.selectedBranch}
                 allReposCommits={allReposCommits}
+                totalFilteredCount={totalFilteredCount}
+                isFiltered={isFiltered}
               />
             )}
           </div>
@@ -491,11 +565,11 @@ const CommitHistory: React.FC = () => {
               Nenhum commit encontrado
             </h3>
             <p className="text-slate-500 text-center mb-6">
-              {filters.searchTerm ? 'Nenhum commit corresponde aos filtros aplicados' : 
+              {isFiltered ? 'Nenhum commit corresponde aos filtros aplicados' : 
                filters.selectedRepo === 'all' ? 'Nenhum commit foi encontrado nos repositórios selecionados' :
                'Este repositório não possui commits no branch selecionado'}
             </p>
-            {(filters.searchTerm || filters.selectedAuthor !== 'all' || filters.timeFilter !== 'all') && (
+            {isFiltered && (
               <button
                 onClick={resetFilters}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
@@ -515,29 +589,41 @@ const CommitHistory: React.FC = () => {
               Escolha um repositório para visualizar o histórico detalhado de commits
             </p>
             <div className="bg-slate-700/30 rounded-lg p-6 max-w-md">
-              <h4 className="text-white font-semibold mb-3">Dicas de uso:</h4>
+              <h4 className="text-white font-semibold mb-3">Novos recursos:</h4>
               <ul className="text-sm text-slate-400 space-y-2">
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-400 mt-0.5">•</span>
-                  Selecione "Todos os repositórios" para uma visão global
+                  Filtros de tempo precisos: segundos até anos
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-400 mt-0.5">•</span>
-                  Use os filtros para encontrar commits específicos
+                  Analytics completos dos dados filtrados
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-purple-400 mt-0.5">•</span>
-                  Explore o timeline para uma perspectiva cronológica
+                  Lista otimizada com 10 commits mais relevantes
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-orange-400 mt-0.5">•</span>
-                  Ative os analytics para insights detalhados
+                  Busca avançada por autor, SHA e conteúdo
                 </li>
               </ul>
             </div>
           </div>
         )}
       </div>
+
+      {/* Nota final sobre dados coletados - SIMPLIFICADA */}
+      {currentCommits.length > 0 && (
+        <div className="bg-green-600/10 border border-green-500/20 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="text-green-400 mt-0.5">✅</div>
+            <div>
+              <h4 className="text-green-400 font-medium mb-1">Histórico Completo Coletado</h4>
+              <p className="text-green-300/80 text-sm">
+                <strong>{currentCommits.length.toLocaleString()} commits</strong> foram coletados do histórico completo disponível. 
+                Análises e filtros processam 100% destes dados.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

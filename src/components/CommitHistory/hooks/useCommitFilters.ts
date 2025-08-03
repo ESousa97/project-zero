@@ -1,6 +1,7 @@
-// src/components/CommitHistory/hooks/useCommitFilters.ts - CORRIGIDO
+// src/components/CommitHistory/hooks/useCommitFilters.ts - ATUALIZADO
 import { useState, useCallback, useMemo } from 'react';
 import type { ExtendedCommit, CommitFiltersState, CommitType } from '../types';
+import { getTimeFilterMilliseconds } from '../types';
 import type { Commit } from '../../../types/github';
 
 const initialFilters: CommitFiltersState = {
@@ -17,6 +18,8 @@ export const useCommitFilters = (commits: Commit[]) => {
 
   // Processar commits com informações estendidas
   const extendedCommits: ExtendedCommit[] = useMemo(() => {
+    console.log(`🔄 Processando ${commits.length} commits totais para análise...`);
+    
     if (!commits.length) return [];
     
     return commits.map(commit => {
@@ -34,14 +37,14 @@ export const useCommitFilters = (commits: Commit[]) => {
       else if (lowerMessage.startsWith('test')) commitType = 'test';
       else if (lowerMessage.startsWith('chore')) commitType = 'chore';
 
-      // CORREÇÃO: Garantir que commit.author seja sempre definido
+      // Garantir que commit.author seja sempre definido
       const normalizedCommitAuthor = {
         name: commit.commit.author?.name || 'Unknown',
         email: commit.commit.author?.email || 'unknown@email.com',
         date: commit.commit.author?.date || new Date().toISOString()
       };
 
-      // CORREÇÃO: Garantir que commit.committer seja sempre definido
+      // Garantir que commit.committer seja sempre definido
       const normalizedCommitCommitter = {
         name: commit.commit.committer?.name || normalizedCommitAuthor.name,
         email: commit.commit.committer?.email || normalizedCommitAuthor.email,
@@ -50,12 +53,10 @@ export const useCommitFilters = (commits: Commit[]) => {
 
       return {
         ...commit,
-        // CORREÇÃO: Manter author opcional mas consistente
         author: commit.author ? {
           login: commit.author.login,
           avatar_url: commit.author.avatar_url
         } : undefined,
-        // CORREÇÃO: Garantir que commit.author seja sempre definido
         commit: {
           ...commit.commit,
           author: normalizedCommitAuthor,
@@ -71,43 +72,63 @@ export const useCommitFilters = (commits: Commit[]) => {
     });
   }, [commits]);
 
-  // Filtrar commits
+  // CORRIGIDO: Replicar lógica do Dashboard - commits reais têm prioridade ABSOLUTA
   const filteredCommits = useMemo(() => {
+    // Se não temos commits reais, retornar array vazio
+    if (!commits.length) {
+      console.log(`🔍 Nenhum commit real disponível para filtrar`);
+      return [];
+    }
+
     let filtered = [...extendedCommits];
+    
+    console.log(`🔍 Iniciando filtragem de ${filtered.length} commits REAIS...`);
 
-    // Filtro de busca
+    // 1. Filtro de busca
     if (filters.searchTerm) {
+      const beforeFilter = filtered.length;
+      const searchTerm = filters.searchTerm.toLowerCase();
       filtered = filtered.filter(commit => 
-        commit.commit.message.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        commit.commit.author.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        commit.sha.toLowerCase().includes(filters.searchTerm.toLowerCase())
+        commit.commit.message.toLowerCase().includes(searchTerm) ||
+        commit.commit.author.name.toLowerCase().includes(searchTerm) ||
+        commit.sha.toLowerCase().includes(searchTerm) ||
+        (commit.author?.login || '').toLowerCase().includes(searchTerm)
       );
+      console.log(`🔍 Filtro busca: ${beforeFilter} → ${filtered.length} commits`);
     }
 
-    // Filtro por autor
+    // 2. Filtro por autor
     if (filters.selectedAuthor !== 'all') {
+      const beforeFilter = filtered.length;
       filtered = filtered.filter(commit => commit.commit.author.name === filters.selectedAuthor);
+      console.log(`👤 Filtro autor: ${beforeFilter} → ${filtered.length} commits`);
     }
 
-    // Filtro de tempo
+    // 3. Filtro de tempo (aplicado a TODOS os dados REAIS)
     if (filters.timeFilter !== 'all') {
-      const now = new Date();
-      filtered = filtered.filter(commit => {
-        const commitDate = new Date(commit.commit.author.date);
-        const diffInHours = (now.getTime() - commitDate.getTime()) / (1000 * 60 * 60);
+      const beforeFilter = filtered.length;
+      const filterMilliseconds = getTimeFilterMilliseconds(filters.timeFilter);
+      
+      if (filterMilliseconds) {
+        const now = Date.now();
+        const cutoffTime = now - filterMilliseconds;
         
-        switch (filters.timeFilter) {
-          case 'hour': return diffInHours <= 1;
-          case 'day': return diffInHours <= 24;
-          case 'week': return diffInHours <= 168;
-          case 'month': return diffInHours <= 720;
-          case 'year': return diffInHours <= 8760;
-          default: return true;
-        }
-      });
+        filtered = filtered.filter(commit => {
+          try {
+            const commitTime = new Date(commit.commit.author.date).getTime();
+            const isInPeriod = commitTime >= cutoffTime;
+            return isInPeriod;
+          } catch (error) {
+            console.warn('Erro ao processar data do commit:', error);
+            return false;
+          }
+        });
+      }
+      
+      console.log(`⏰ Filtro tempo (${filters.timeFilter}): ${beforeFilter} → ${filtered.length} commits REAIS`);
     }
 
-    // Ordenação
+    // 4. Ordenação
     filtered.sort((a, b) => {
       switch (filters.sortBy) {
         case 'date':
@@ -125,15 +146,29 @@ export const useCommitFilters = (commits: Commit[]) => {
       }
     });
 
+    console.log(`📋 Total após filtros REAIS: ${filtered.length} commits`);
     return filtered;
-  }, [extendedCommits, filters]);
+  }, [extendedCommits, filters, commits.length]);
 
-  // Autores únicos
+  // Para a LISTA: Apenas os 10 melhores commits filtrados (como no Dashboard)
+  const limitedCommitsForList = useMemo(() => {
+    const limited = filteredCommits.slice(0, 10);
+    console.log(`🖥️ Lista exibindo: ${limited.length} de ${filteredCommits.length} commits filtrados REAIS`);
+    return limited;
+  }, [filteredCommits]);
+
+  // Para ANALYTICS: TODOS os commits filtrados REAIS (sem limite)
+  const allFilteredCommitsForAnalytics = useMemo(() => {
+    console.log(`📊 Analytics usando: ${filteredCommits.length} commits filtrados REAIS completos`);
+    return filteredCommits;
+  }, [filteredCommits]);
+
+  // Autores únicos baseados nos commits filtrados
   const uniqueAuthors = useMemo(() => {
-    return [...new Set(extendedCommits.map(commit => commit.commit.author.name))]
+    return [...new Set(filteredCommits.map(commit => commit.commit.author.name))]
       .filter(name => name !== '')
       .sort();
-  }, [extendedCommits]);
+  }, [filteredCommits]);
 
   // Atualizar filtro
   const updateFilter = useCallback((key: keyof CommitFiltersState, value: string) => {
@@ -153,8 +188,17 @@ export const useCommitFilters = (commits: Commit[]) => {
     filters,
     extendedCommits,
     filteredCommits,
+    limitedCommitsForList, // 10 commits para lista
+    allFilteredCommitsForAnalytics, // Todos os commits filtrados para analytics
     uniqueAuthors,
     updateFilter,
-    resetFilters
+    resetFilters,
+    // Estatísticas úteis
+    totalFilteredCount: filteredCommits.length,
+    totalCommitsCount: extendedCommits.length,
+    isFiltered: filters.searchTerm !== '' || 
+                filters.selectedAuthor !== 'all' || 
+                filters.timeFilter !== 'all' || 
+                filters.sortBy !== 'date'
   };
 };

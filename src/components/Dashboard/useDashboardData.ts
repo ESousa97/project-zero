@@ -139,6 +139,7 @@ export const useDashboardData = () => {
 
   // Memoizar dados do período atual - CORRIGIDO COM VALORES REALISTAS
   // CORRIGIR: Priorizar commits reais quando disponíveis
+  // MANTER: Esta lógica está funcionando corretamente no Dashboard
   const currentPeriodData: PeriodData = useMemo(() => {
     const now = new Date();
     const totalStars = filteredRepositories.reduce((sum, r) => sum + r.stargazers_count, 0);
@@ -181,10 +182,10 @@ export const useDashboardData = () => {
       }
       
       // Se temos commits reais, NÃO usar estimativas
-      console.log(`🔍 Usando commits reais: ${commitsInPeriod} para período ${timeRange}`);
+      console.log(`🔍 Dashboard usando commits reais: ${commitsInPeriod} para período ${timeRange}`);
     } else {
       // Só usar estimativas se NÃO houver commits reais
-      console.log(`📊 Usando estimativas para período ${timeRange}`);
+      console.log(`📊 Dashboard usando estimativas para período ${timeRange}`);
       const reposToUse = !cutoffDate ? repositories : filteredRepositories;
       
       commitsInPeriod = reposToUse.reduce((total, repo) => {
@@ -228,7 +229,7 @@ export const useDashboardData = () => {
       repositories: filteredRepositories.length,
       stars: totalStars,
       forks: totalForks,
-      commits: commitsInPeriod,
+      commits: commitsInPeriod, // SEMPRE commits reais quando disponíveis
       issues: totalIssues,
       activeRepos,
       totalSize: Math.round(totalSize * 100) / 100,
