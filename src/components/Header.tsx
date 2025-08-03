@@ -199,8 +199,9 @@ const Header: React.FC<HeaderProps> = ({
                             {!notification.read && (
                               <button
                                 onClick={() => onMarkNotificationAsRead(notification.id)}
-                                className="w-2 h-2 bg-blue-500 rounded-full ml-2 flex-shrink-0"
+                                className="w-4 h-4 bg-blue-500 rounded-full ml-2 flex-shrink-0"
                                 aria-label="Marcar como lida"
+                                title="Marcar como lida"
                               />
                             )}
                           </div>

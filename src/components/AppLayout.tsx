@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import Footer from './Footer';
 import LoadingOverlay from './LoadingOverlay';
 import Breadcrumb from './Breadcrumb';
 import type { ViewType, MenuItem, BreadcrumbItem, Notification } from '../types/app';
@@ -67,12 +68,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   children,
 }) => {
   return (
-    <div className={`min-h-screen transition-all duration-300 ${
+    <div className={`min-h-screen flex flex-col transition-all duration-300 ${
       darkMode 
         ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
         : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'
     }`}>
-      {/* Header */}
+      {/* Header - fixed at top */}
       <Header
         darkMode={darkMode}
         onToggleDarkMode={onToggleDarkMode}
@@ -86,8 +87,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
         isOnline={isOnline}
       />
 
-      <div className="flex">
-        {/* Sidebar */}
+      <div className="flex flex-1">
+        {/* Sidebar - integrated with header */}
         <Sidebar
           menuItems={menuItems}
           currentView={currentView}
@@ -101,11 +102,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* Main Content Area */}
         <main
-          className={`flex-1 transition-all duration-300 ${
+          className={`flex-1 flex flex-col transition-all duration-300 ${
             sidebarCollapsed ? 'ml-16' : 'ml-64'
           }`}
         >
-          <div className="p-6">
+          {/* Content with padding */}
+          <div className="flex-1 p-6 pt-20"> {/* pt-20 para compensar o header fixo */}
             {/* Breadcrumb */}
             <Breadcrumb 
               items={breadcrumbItems} 
@@ -113,10 +115,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({
             />
 
             {/* Content */}
-            <div className="min-h-screen">
+            <div className="min-h-[calc(100vh-200px)]">
               {children}
             </div>
           </div>
+
+          {/* Footer */}
+          <Footer darkMode={darkMode} />
         </main>
       </div>
 

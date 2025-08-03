@@ -24,28 +24,43 @@ const Sidebar: React.FC<SidebarProps> = ({
   lastSync,
 }) => {
   return (
-    <aside className={`fixed left-0 top-16 h-[calc(100vh-4rem)] transition-all duration-300 z-40 border-r ${
-      collapsed ? 'w-16' : 'w-64'
-    } ${
-      darkMode 
-        ? 'bg-slate-800/95 border-slate-700' 
-        : 'bg-white/95 border-gray-200'
-    } backdrop-blur-sm`}>
-      {/* Toggle Button */}
-      <button
-        onClick={onToggleCollapse}
-        className={`absolute -right-3 top-6 w-6 h-6 border rounded-full flex items-center justify-center transition-all duration-200 ${
-          darkMode 
-            ? 'bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600' 
-            : 'bg-white border-gray-300 text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-        }`}
-        aria-label={collapsed ? 'Expandir sidebar' : 'Contrair sidebar'}
+      <aside
+        className={`fixed left-0 top-34 h-[calc(100vh-64px)] transition-all duration-300 z-40 border-r flex flex-col ${
+          collapsed ? 'w-16' : 'w-64'
+        } ${
+          darkMode
+            ? 'bg-slate-900/95 border-slate-700'
+            : 'bg-white/95 border-gray-200'
+        } backdrop-blur-sm`}
       >
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-      </button>
+      
+      {/* Header Space - matches header height */}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-slate-700">
+        {!collapsed && (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">GV</span>
+            </div>
+            <span className="text-white font-semibold">GitVision</span>
+          </div>
+        )}
+        
+        {/* Toggle Button - repositioned */}
+        <button
+          onClick={onToggleCollapse}
+          className={`w-8 h-8 border rounded-lg flex items-center justify-center transition-all duration-200 ${
+            darkMode 
+              ? 'bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600' 
+              : 'bg-white border-gray-300 text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+          aria-label={collapsed ? 'Expandir sidebar' : 'Contrair sidebar'}
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+      </div>
 
-      {/* Navigation */}
-      <nav className="p-4 space-y-2" role="navigation" aria-label="Menu principal">
+      {/* Navigation - flex-1 to take remaining space */}
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Menu principal">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
@@ -57,9 +72,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 disabled={item.premium}
                 className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg transition-all duration-200 ${
                   isActive
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25'
                     : darkMode 
-                      ? 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                      ? 'text-slate-300 hover:text-white hover:bg-slate-800/50'
                       : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
                 } ${item.premium ? 'opacity-60 cursor-not-allowed' : ''}`}
                 aria-current={isActive ? 'page' : undefined}
@@ -80,7 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <span className={`px-2 py-1 text-xs font-bold rounded-full ${
                         isActive 
                           ? 'bg-white/20 text-white' 
-                          : 'bg-blue-100 text-blue-800'
+                          : 'bg-blue-600 text-white'
                       }`}>
                         {item.badge}
                       </span>
@@ -96,7 +111,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               
               {/* Tooltip for collapsed state */}
               {collapsed && (
-                <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg">
                   {item.label}
                   {item.description && (
                     <div className="text-xs text-gray-300 mt-1">{item.description}</div>
@@ -104,6 +119,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                   {item.premium && (
                     <div className="text-xs text-yellow-300 mt-1">Funcionalidade Premium</div>
                   )}
+                  {/* Arrow pointer */}
+                  <div className="absolute left-0 top-1/2 transform -translate-x-1 -translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
                 </div>
               )}
             </div>
@@ -111,13 +128,13 @@ const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Status Section */}
+      {/* Status Section - at bottom */}
       {!collapsed && (
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className={`rounded-lg p-3 border ${
+        <div className="p-4 border-t border-slate-700">
+          <div className={`rounded-lg p-3 ${
             darkMode 
-              ? 'bg-slate-700/50 border-slate-600' 
-              : 'bg-gray-50 border-gray-200'
+              ? 'bg-slate-800/50 border border-slate-600' 
+              : 'bg-gray-50 border border-gray-200'
           }`}>
             <div className="flex items-center space-x-2 mb-2">
               <div className={`w-2 h-2 rounded-full animate-pulse ${
