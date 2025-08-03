@@ -5,7 +5,7 @@ import type { ViewType } from '../types/app';
 // Componentes das views
 import Dashboard from './Dashboard/Dashboard';
 import RepositoryList from './RepositoryList';
-import CommitHistory from './CommitHistory';
+import CommitHistory from './CommitHistory/CommitHistory';
 import UserProfile from './UserProfile';
 import Settings from './Settings';
 
