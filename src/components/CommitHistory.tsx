@@ -36,6 +36,11 @@ interface ExtendedCommit extends Commit {
   messageLength?: number;
   dayOfWeek?: string;
   timeOfDay?: number;
+  repository?: {
+    name: string;
+    full_name: string;
+    html_url: string;
+  };
 }
 
 const CommitHistory: React.FC = () => {
@@ -50,28 +55,108 @@ const CommitHistory: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedAuthor, setSelectedAuthor] = useState<string>('all');
   const [showAnalytics, setShowAnalytics] = useState(true);
+  const [allReposCommits, setAllReposCommits] = useState<Commit[]>([]);
+  const [loadingAllRepos, setLoadingAllRepos] = useState(false);
 
   // Memoizar fetchCommits para usar no useEffect
   const memoizedFetchCommits = useCallback((repo: string, branch: string) => {
     fetchCommits(repo, branch);
   }, [fetchCommits]);
 
-  // Otimizar useEffect para fetchCommits
+  // CORRIGIDO: Função para buscar commits de todos os repositórios
+  const fetchAllRepositoriesCommits = useCallback(async () => {
+    if (!repositories.length) return;
+    
+    setLoadingAllRepos(true);
+    const allCommitsFromRepos: Commit[] = [];
+    
+    try {
+      // Buscar commits dos 10 repositórios mais recentes para evitar sobrecarga
+      const recentRepos = repositories
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        .slice(0, 10);
+      
+      console.log(`🔄 Iniciando busca de commits em ${recentRepos.length} repositórios...`);
+      
+      for (const repo of recentRepos) {
+        try {
+          console.log(`📡 Buscando commits de ${repo.full_name}...`);
+          
+          // Fazer requisição direta para cada repositório
+          const response = await fetch(
+            `https://api.github.com/repos/${repo.full_name}/commits?per_page=100`,
+            {
+              headers: {
+                'Authorization': `token ${localStorage.getItem('github_token')}`,
+                'Accept': 'application/vnd.github.v3+json',
+              },
+            }
+          );
+
+          if (response.ok) {
+            const repoCommits = await response.json();
+            // Adicionar informação do repositório a cada commit
+            const commitsWithRepo = repoCommits.map((commit: Commit) => ({
+              ...commit,
+              repository: {
+                name: repo.name,
+                full_name: repo.full_name,
+                html_url: repo.html_url
+              }
+            }));
+            
+            allCommitsFromRepos.push(...commitsWithRepo);
+            console.log(`✅ ${repoCommits.length} commits coletados de ${repo.name}`);
+          } else {
+            console.warn(`⚠️ Erro ao buscar commits de ${repo.name}: ${response.status}`);
+          }
+          
+          // Aguardar um pouco para evitar rate limiting
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (error) {
+          console.error(`❌ Erro ao buscar commits do repositório ${repo.name}:`, error);
+        }
+      }
+      
+      // Ordenar todos os commits por data (mais recente primeiro)
+      allCommitsFromRepos.sort((a, b) => 
+        new Date(b.commit.author.date).getTime() - new Date(a.commit.author.date).getTime()
+      );
+      
+      console.log(`🎯 Total de commits coletados: ${allCommitsFromRepos.length}`);
+      setAllReposCommits(allCommitsFromRepos);
+      
+    } catch (error) {
+      console.error('❌ Erro geral ao buscar commits de todos os repositórios:', error);
+    } finally {
+      setLoadingAllRepos(false);
+    }
+  }, [repositories]);
+
+  // Otimizar useEffect para fetchCommits - CORRIGIDO dependências
   useEffect(() => {
-    if (selectedRepo && selectedBranch && !loading) {
+    if (selectedRepo === 'all') {
+      // Buscar commits de todos os repositórios
+      fetchAllRepositoriesCommits();
+    } else if (selectedRepo && selectedBranch && !loading) {
       const timeoutId = setTimeout(() => {
         memoizedFetchCommits(selectedRepo, selectedBranch);
       }, 500);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [selectedRepo, selectedBranch, loading, memoizedFetchCommits]);
+  }, [selectedRepo, selectedBranch, loading, fetchAllRepositoriesCommits, memoizedFetchCommits]);
+
+  // Determinar quais commits usar baseado na seleção
+  const currentCommits = useMemo(() => {
+    return selectedRepo === 'all' ? allReposCommits : commits;
+  }, [selectedRepo, allReposCommits, commits]);
 
   // Processar commits com informações estendidas
   const extendedCommits: ExtendedCommit[] = useMemo(() => {
-    if (!commits.length) return [];
+    if (!currentCommits.length) return [];
     
-    return commits.map(commit => {
+    return currentCommits.map(commit => {
       const message = commit.commit.message;
       const date = new Date(commit.commit.author.date);
 
@@ -96,7 +181,7 @@ const CommitHistory: React.FC = () => {
         linesChanged: (commit.stats?.additions || 0) + (commit.stats?.deletions || 0)
       };
     });
-  }, [commits]);
+  }, [currentCommits]);
 
   // Memoizar analytics
   const analytics: CommitAnalytics = useMemo(() => {
@@ -310,12 +395,21 @@ const CommitHistory: React.FC = () => {
 
   const handleRepoChange = (repoFullName: string) => {
     setSelectedRepo(repoFullName);
+    // Limpar commits anteriores quando trocar de repositório
+    if (repoFullName !== 'all') {
+      setAllReposCommits([]);
+    }
   };
 
+  // Adicionar função handleBranchChange que estava faltando
   const handleBranchChange = (branch: string) => {
     setSelectedBranch(branch);
   };
 
+  // Determinar se está carregando
+  const isCurrentlyLoading = selectedRepo === 'all' ? loadingAllRepos : loading;
+
+  // Definir COLORS que estava faltando
   const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'];
 
   return (
@@ -365,6 +459,7 @@ const CommitHistory: React.FC = () => {
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
             >
               <option value="">Selecione um repositório</option>
+              <option value="all">🌟 Todos os repositórios ({repositories.length} total)</option>
               {repositories.map(repo => (
                 <option key={repo.id} value={repo.full_name}>
                   {repo.name} ({repo.default_branch})
@@ -380,7 +475,7 @@ const CommitHistory: React.FC = () => {
             <select
               value={selectedBranch}
               onChange={(e) => handleBranchChange(e.target.value)}
-              disabled={!selectedRepo}
+              disabled={!selectedRepo || selectedRepo === 'all'}
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
             >
               <option value="main">main</option>
@@ -388,6 +483,11 @@ const CommitHistory: React.FC = () => {
               <option value="develop">develop</option>
               <option value="dev">dev</option>
             </select>
+            {selectedRepo === 'all' && (
+              <p className="text-xs text-slate-400 mt-1">
+                Usando branch padrão de cada repositório
+              </p>
+            )}
           </div>
 
           <div>
@@ -408,21 +508,47 @@ const CommitHistory: React.FC = () => {
 
           <div className="flex items-end">
             <button
-              onClick={() => selectedRepo && fetchCommits(selectedRepo, selectedBranch)}
-              disabled={!selectedRepo || loading}
+              onClick={() => {
+                if (selectedRepo === 'all') {
+                  fetchAllRepositoriesCommits();
+                } else if (selectedRepo) {
+                  fetchCommits(selectedRepo, selectedBranch);
+                }
+              }}
+              disabled={!selectedRepo || isCurrentlyLoading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {isCurrentlyLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Carregando...
+                  {selectedRepo === 'all' ? 'Coletando de todos...' : 'Carregando...'}
                 </>
               ) : (
-                'Buscar Commits'
+                selectedRepo === 'all' ? 'Buscar de Todos' : 'Buscar Commits'
               )}
             </button>
           </div>
         </div>
+        
+        {selectedRepo === 'all' && (
+          <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="w-5 h-5 text-blue-400 mt-0.5">ℹ️</div>
+              <div className="text-sm">
+                <p className="text-blue-400 font-medium mb-1">Busca em Todos os Repositórios</p>
+                <p className="text-slate-300">
+                  Esta opção coletará commits dos {Math.min(10, repositories.length)} repositórios mais recentes. 
+                  Cada repositório pode retornar até 100 commits recentes.
+                </p>
+                {allReposCommits.length > 0 && (
+                  <p className="text-green-400 mt-2 font-medium">
+                    ✅ {allReposCommits.length} commits coletados de múltiplos repositórios
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Analytics Dashboard */}
@@ -561,35 +687,35 @@ const CommitHistory: React.FC = () => {
               <Target className="w-5 h-5 mr-2 text-yellow-400" />
               Tipos de Commit
             </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={Object.entries(
-                      extendedCommits.reduce((acc, commit) => {
-                        const type: CommitType = commit.commitType || 'other';
-                        acc[type] = (acc[type] || 0) + 1;
-                        return acc;
-                      }, {} as Record<CommitType, number>)
-                    ).map(([type, count]) => ({
-                      name: getCommitTypeLabel(type as CommitType),
-                      value: count,
-                      type: type as CommitType,
-                    }))}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    innerRadius={40}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {Object.keys(analytics.authorStats).map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={Object.entries(
+                    extendedCommits.reduce((acc, commit) => {
+                      const type: CommitType = commit.commitType || 'other';
+                      acc[type] = (acc[type] || 0) + 1;
+                      return acc;
+                    }, {} as Record<CommitType, number>)
+                  ).map(([type, count]) => ({
+                    name: getCommitTypeLabel(type as CommitType),
+                    value: count,
+                    type: type as CommitType,
+                  }))}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  innerRadius={40}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {Object.entries(analytics.authorStats).map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
@@ -654,11 +780,21 @@ const CommitHistory: React.FC = () => {
       )}
 
       {/* Lista de Commits */}
-      {loading && commits.length === 0 ? (
+      {isCurrentlyLoading && currentCommits.length === 0 ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-400">Carregando commits detalhados...</p>
+            <p className="text-slate-400">
+              {selectedRepo === 'all' 
+                ? 'Coletando commits de múltiplos repositórios...' 
+                : 'Carregando commits detalhados...'
+              }
+            </p>
+            {selectedRepo === 'all' && (
+              <p className="text-slate-500 text-sm mt-2">
+                Isso pode levar alguns momentos (até {Math.min(10, repositories.length)} repositórios)
+              </p>
+            )}
           </div>
         </div>
       ) : filteredCommits.length > 0 ? (
@@ -668,9 +804,18 @@ const CommitHistory: React.FC = () => {
               {filteredCommits.length} commits encontrados
             </h2>
             <div className="text-sm text-slate-400">
-              Repositório: <span className="text-blue-400 font-medium">{selectedRepo}</span>
-              {selectedBranch && (
-                <span> • Branch: <span className="text-green-400 font-medium">{selectedBranch}</span></span>
+              {selectedRepo === 'all' ? (
+                <span>
+                  Fonte: <span className="text-purple-400 font-medium">Múltiplos repositórios</span>
+                  <span className="text-slate-500"> • {allReposCommits.length} commits totais coletados</span>
+                </span>
+              ) : (
+                <>
+                  Repositório: <span className="text-blue-400 font-medium">{selectedRepo}</span>
+                  {selectedBranch && (
+                    <span> • Branch: <span className="text-green-400 font-medium">{selectedBranch}</span></span>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -680,7 +825,7 @@ const CommitHistory: React.FC = () => {
               const stats = commit.stats;
               
               return (
-                <div key={commit.sha} className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 hover:border-blue-300/50 transition-all duration-300 group">
+                <div key={`${commit.sha}-${commit.repository?.full_name || selectedRepo}`} className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 hover:border-blue-300/50 transition-all duration-300 group">
                   <div className="flex items-start space-x-4">
                     {/* Avatar */}
                     <div className="flex-shrink-0">
@@ -703,6 +848,12 @@ const CommitHistory: React.FC = () => {
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${getCommitTypeColor(commit.commitType)}`}>
                           {getCommitTypeLabel(commit.commitType)}
                         </span>
+                        {/* Mostrar repositório quando for busca de todos */}
+                        {selectedRepo === 'all' && commit.repository && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-600 text-white">
+                            📦 {commit.repository.name}
+                          </span>
+                        )}
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold text-white mb-1 break-words group-hover:text-blue-400 transition-colors">
                             {commit.commit.message.split('\n')[0]}
@@ -852,7 +1003,9 @@ const CommitHistory: React.FC = () => {
           <GitCommit className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-slate-400 mb-2">Nenhum commit encontrado</h3>
           <p className="text-slate-500">
-            {searchTerm ? 'Tente ajustar os filtros de busca' : 'Este repositório não possui commits no branch selecionado'}
+            {searchTerm ? 'Tente ajustar os filtros de busca' : 
+             selectedRepo === 'all' ? 'Nenhum commit foi encontrado nos repositórios selecionados' :
+             'Este repositório não possui commits no branch selecionado'}
           </p>
         </div>
       ) : (
