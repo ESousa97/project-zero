@@ -1,5 +1,10 @@
 // tailwind.config.js
+/** @type {import('tailwindcss').Config} */
 module.exports = {
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}', // busca arquivos JS, TS, JSX, TSX dentro de src
+  ],
   theme: {
     extend: {
       keyframes: {
@@ -13,4 +18,5 @@ module.exports = {
       },
     },
   },
+  plugins: [],
 };
