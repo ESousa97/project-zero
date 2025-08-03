@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useGitHub } from '../../context/GitHubContext';
 
 // Componentes modulares
@@ -12,30 +12,27 @@ import DashboardCharts from './DashboardCharts';
 import { useDashboardData } from './useDashboardData';
 
 const Dashboard: React.FC = () => {
-  const { token } = useGitHub();
+  const { token, user, loading, repositories } = useGitHub();
   
   const {
-    // Data
-    repositories,
     currentPeriodData,
     totalStats,
-    languageData,
-    timeSeriesData,
-    repositoryMetrics,
-    hasPerformanceData,
-    user,
-    loading,
-    
-    // State
     timeRange,
-    selectedMetric,
-    isRefreshing,
-    
-    // Actions
     setTimeRange,
-    setSelectedMetric,
+    isRefreshing,
     handleRefresh,
+    timeSeriesData,
+    languageData,
+    repositoryMetrics,
+    selectedMetric,
+    setSelectedMetric,
+    hasPerformanceData
   } = useDashboardData();
+
+  // Log para debug
+  useEffect(() => {
+    console.log(`📊 Dashboard renderizado - Commits: ${currentPeriodData.commits}, Período: ${timeRange}`);
+  }, [currentPeriodData.commits, timeRange]);
 
   // Renderiza modal de token se necessário
   if (!token) {

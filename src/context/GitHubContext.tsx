@@ -94,6 +94,8 @@ export const useGitHub = (): GitHubContextType => {
   return context;
 };
 
+const GITHUB_API_BASE = 'https://api.github.com';
+
 export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Token state
   const [token, setTokenState] = useState<string>(() => 
@@ -135,10 +137,53 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return services.fetchRepositories();
   }, [services]);
 
-  const fetchCommits = useCallback(async (repo: string, branch = 'main', options: CommitFetchOptions = {}) => {
-    if (!services) throw new Error('Token do GitHub é obrigatório');
-    return services.fetchCommits(repo, branch, options);
-  }, [services]);
+  // CORRIGIR: Evitar múltiplas atualizações de commits
+  const fetchCommits = useCallback(async (repoFullName: string, branch: string = 'main') => {
+    if (!token) {
+      console.warn('❌ Token não disponível para buscar commits');
+      return;
+    }
+
+    if (state.loading.loadingCommits) {
+      console.log('⏳ Já está carregando, ignorando nova requisição de commits');
+      return;
+    }
+
+    try {
+      state.setLoading(true);
+      console.log(`🔍 Buscando commits de ${repoFullName}...`);
+      
+      const response = await fetch(
+        `${GITHUB_API_BASE}/repos/${repoFullName}/commits?sha=${branch}&per_page=100`,
+        {
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`⚠️ Branch ${branch} não encontrada em ${repoFullName}`);
+          return;
+        }
+        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+      }
+
+      const commitsData = await response.json();
+      
+      // IMPORTANTE: Substituir commits completamente, não acumular
+      state.setCommits(commitsData);
+      console.log(`✅ ${commitsData.length} commits carregados de ${repoFullName}`);
+      
+    } catch (error) {
+      console.error('❌ Erro ao buscar commits:', error);
+      state.setError(error instanceof Error ? error.message : 'Erro desconhecido ao buscar commits');
+    } finally {
+      state.setLoading(false);
+    }
+  }, [token, state]);
 
   const fetchUser = useCallback(async () => {
     if (!services) throw new Error('Token do GitHub é obrigatório');

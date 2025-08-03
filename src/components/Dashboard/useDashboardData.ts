@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useGitHub } from '../../context/GitHubContext';
 
 type TimeFilter = '1M' | '3M' | '6M' | '1Y' | 'ALL';
@@ -50,7 +50,7 @@ const calculateSizeInMB = (sizeInKB: number): number => {
 };
 
 export const useDashboardData = () => {
-  const { repositories, user, loading, fetchRepositories, fetchUser, commits, fetchCommits } = useGitHub();
+  const { repositories, user, loading, fetchRepositories, fetchUser, commits } = useGitHub();
   
   const [timeRange, setTimeRange] = useState<TimeFilter>('6M');
   const [selectedMetric, setSelectedMetric] = useState<'commits' | 'stars' | 'forks' | 'issues'>('commits');
@@ -78,7 +78,67 @@ export const useDashboardData = () => {
     });
   }, [repositories, timeRange, getDateRangeFilter]);
 
-  // Memoizar dados do período atual - CORRIGIDO
+  // Calcular estimativas de commits de forma estável SEM estado separado
+  const stableCommitEstimates = useMemo(() => {
+    const estimates = new Map<string, number>();
+    
+    repositories.forEach(repo => {
+      const repoKey = `${repo.id}-${repo.updated_at}`;
+      
+      // Calcular estimativa de forma determinística
+      const now = new Date();
+      const repoAge = Math.max(1, (now.getTime() - new Date(repo.created_at).getTime()) / (1000 * 60 * 60 * 24));
+      const lastUpdate = new Date(repo.updated_at);
+      const daysSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+      
+      // Usar hash do ID do repo para gerar valores consistentes
+      const repoHash = repo.id % 100;
+      
+      // Estimativa base mais realista - baseada na idade do repositório
+      let baseCommits = Math.floor(repoAge / 7) * 5; // 5 commits por semana em média
+      
+      // Adicionar variação baseada no hash (consistente) - valores maiores
+      baseCommits += Math.floor(repoHash / 2) + 20; // Mínimo 20 commits extras
+      
+      // Ajustar pela atividade (sem randomização) - multiplicadores maiores
+      if (daysSinceUpdate <= 7) {
+        baseCommits *= 3; // Muito ativo
+      } else if (daysSinceUpdate <= 30) {
+        baseCommits *= 2.5; // Moderadamente ativo
+      } else if (daysSinceUpdate <= 90) {
+        baseCommits *= 2; // Pouco ativo
+      } else if (daysSinceUpdate <= 365) {
+        baseCommits *= 1.5; // Ativo no último ano
+      }
+      
+      // Ajustar pela popularidade - multiplicadores maiores
+      if (repo.stargazers_count > 100) {
+        baseCommits *= 4;
+      } else if (repo.stargazers_count > 50) {
+        baseCommits *= 3;
+      } else if (repo.stargazers_count > 10) {
+        baseCommits *= 2;
+      } else if (repo.stargazers_count > 0) {
+        baseCommits *= 1.5;
+      }
+      
+      // Ajustar pelo tamanho do repositório
+      if (repo.size > 10000) { // Repos grandes
+        baseCommits *= 2;
+      } else if (repo.size > 1000) {
+        baseCommits *= 1.5;
+      }
+      
+      // Mínimo muito maior para ser realista
+      const finalEstimate = Math.max(50, Math.floor(baseCommits));
+      estimates.set(repoKey, finalEstimate);
+    });
+    
+    return estimates;
+  }, [repositories]);
+
+  // Memoizar dados do período atual - CORRIGIDO COM VALORES REALISTAS
+  // CORRIGIR: Priorizar commits reais quando disponíveis
   const currentPeriodData: PeriodData = useMemo(() => {
     const now = new Date();
     const totalStars = filteredRepositories.reduce((sum, r) => sum + r.stargazers_count, 0);
@@ -99,66 +159,68 @@ export const useDashboardData = () => {
       }
     }).length;
     
-    // CORRIGIDO: Calcular commits baseado nos repositórios filtrados, não em dados aleatórios
+    // CORRIGIDO: Evitar sobreposição - commits reais têm prioridade ABSOLUTA
     let commitsInPeriod = 0;
     
+    // Sempre verificar commits reais primeiro e usar APENAS eles se disponíveis
     if (commits && commits.length > 0) {
-      // Se temos commits reais, usar eles
       if (!cutoffDate) {
+        // TODOS os commits reais
         commitsInPeriod = commits.length;
       } else {
-        commitsInPeriod = commits.filter(commit => {
+        // Filtrar commits reais pelo período
+        const realCommitsInPeriod = commits.filter(commit => {
           try {
             const commitDate = new Date(commit.commit.author.date);
             return commitDate >= cutoffDate;
           } catch {
             return false;
           }
-        }).length;
+        });
+        commitsInPeriod = realCommitsInPeriod.length;
       }
+      
+      // Se temos commits reais, NÃO usar estimativas
+      console.log(`🔍 Usando commits reais: ${commitsInPeriod} para período ${timeRange}`);
     } else {
-      // Se não temos commits reais, estimar baseado nos repositórios e atividade
-      commitsInPeriod = filteredRepositories.reduce((total, repo) => {
-        // Estimativa mais realista baseada na atividade do repositório
-        const repoAge = Math.max(1, (now.getTime() - new Date(repo.created_at).getTime()) / (1000 * 60 * 60 * 24));
-        const lastUpdate = new Date(repo.updated_at);
-        const daysSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+      // Só usar estimativas se NÃO houver commits reais
+      console.log(`📊 Usando estimativas para período ${timeRange}`);
+      const reposToUse = !cutoffDate ? repositories : filteredRepositories;
+      
+      commitsInPeriod = reposToUse.reduce((total, repo) => {
+        const repoKey = `${repo.id}-${repo.updated_at}`;
+        const repoEstimate = stableCommitEstimates.get(repoKey) || 50;
         
-        // Repositórios mais ativos tendem a ter mais commits
-        let estimatedCommits = 0;
-        
-        if (daysSinceUpdate <= 7) {
-          // Muito ativo: 20-50 commits estimados
-          estimatedCommits = Math.floor(Math.random() * 30) + 20;
-        } else if (daysSinceUpdate <= 30) {
-          // Moderadamente ativo: 10-30 commits estimados
-          estimatedCommits = Math.floor(Math.random() * 20) + 10;
-        } else if (daysSinceUpdate <= 90) {
-          // Pouco ativo: 5-15 commits estimados
-          estimatedCommits = Math.floor(Math.random() * 10) + 5;
+        if (!cutoffDate) {
+          return total + repoEstimate;
         } else {
-          // Inativo: 1-5 commits estimados
-          estimatedCommits = Math.floor(Math.random() * 4) + 1;
-        }
-        
-        // Ajustar pela idade do repositório (repos mais antigos tendem a ter mais commits)
-        if (repoAge > 365) {
-          estimatedCommits = Math.floor(estimatedCommits * 1.5);
-        }
-        
-        // Ajustar pelo número de stars (projetos populares tendem a ter mais commits)
-        if (repo.stargazers_count > 10) {
-          estimatedCommits = Math.floor(estimatedCommits * 1.3);
-        }
-        
-        // Se há filtro de período, ajustar proporcionalmente
-        if (cutoffDate) {
           const periodDays = (now.getTime() - cutoffDate.getTime()) / (1000 * 60 * 60 * 24);
-          const totalDays = Math.max(periodDays, repoAge);
-          estimatedCommits = Math.floor(estimatedCommits * (periodDays / totalDays));
+          const repoCreated = new Date(repo.created_at);
+          
+          if (repoCreated.getTime() < cutoffDate.getTime()) {
+            const lastUpdate = new Date(repo.updated_at);
+            const daysSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+            
+            let commitsPerDay = 1;
+            if (daysSinceUpdate <= 7) commitsPerDay = 3;
+            else if (daysSinceUpdate <= 30) commitsPerDay = 2;
+            else if (daysSinceUpdate <= 90) commitsPerDay = 1;
+            else commitsPerDay = 0.5;
+            
+            if (repo.stargazers_count > 50) commitsPerDay *= 2;
+            else if (repo.stargazers_count > 10) commitsPerDay *= 1.5;
+            
+            const periodCommits = Math.floor(periodDays * commitsPerDay);
+            return total + Math.max(5, periodCommits);
+          } else {
+            const daysInPeriod = (now.getTime() - repoCreated.getTime()) / (1000 * 60 * 60 * 24);
+            const repoAge = Math.max(1, (now.getTime() - repoCreated.getTime()) / (1000 * 60 * 60 * 24));
+            const proportion = Math.min(1, daysInPeriod / repoAge);
+            const periodCommits = Math.floor(repoEstimate * proportion);
+            
+            return total + Math.max(10, periodCommits);
+          }
         }
-        
-        return total + estimatedCommits;
       }, 0);
     }
 
@@ -174,7 +236,7 @@ export const useDashboardData = () => {
       forksGrowthRate: '0%',
       reposGrowthRate: '0%',
     };
-  }, [filteredRepositories, commits, timeRange, getDateRangeFilter]);
+  }, [filteredRepositories, commits, timeRange, getDateRangeFilter, repositories, stableCommitEstimates]);
 
   const totalStats = useMemo(() => {
     if (!repositories.length) return null;
@@ -246,10 +308,9 @@ export const useDashboardData = () => {
       .slice(0, 10);
   }, [filteredRepositories]);
 
-  // Otimizar timeSeriesData com dados mais robustos - CORRIGIDO
+  // Otimizar timeSeriesData com valores estáveis
   const timeSeriesData: TimeSeriesData[] = useMemo(() => {
     if (!filteredRepositories.length) {
-      // Retornar dados de exemplo quando não há repositórios
       const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
       return months.map(month => ({
         date: month,
@@ -266,8 +327,7 @@ export const useDashboardData = () => {
     
     // Inicializar dados para todos os meses do ano atual
     months.forEach(month => {
-      const key = `${month} ${currentYear}`;
-      data[key] = {
+      data[month] = {
         date: month,
         repositories: 0,
         commits: 0,
@@ -279,43 +339,39 @@ export const useDashboardData = () => {
     filteredRepositories.forEach(repo => {
       const createdDate = new Date(repo.created_at);
       const updatedDate = new Date(repo.updated_at);
+      const repoKey = `${repo.id}-${repo.updated_at}`;
+      const totalRepoCommits = stableCommitEstimates.get(repoKey) || 50;
       
       // Dados baseados na data de criação
       if (createdDate.getFullYear() === currentYear) {
-        const createdKey = `${months[createdDate.getMonth()]} ${currentYear}`;
-        if (data[createdKey]) {
-          data[createdKey].repositories += 1;
+        const createdMonth = months[createdDate.getMonth()];
+        if (data[createdMonth]) {
+          data[createdMonth].repositories += 1;
         }
       }
       
       // Dados baseados na data de atualização
       if (updatedDate.getFullYear() === currentYear) {
-        const updatedKey = `${months[updatedDate.getMonth()]} ${currentYear}`;
-        if (data[updatedKey]) {
-          data[updatedKey].stars += repo.stargazers_count;
-          data[updatedKey].forks += repo.forks_count;
+        const updatedMonth = months[updatedDate.getMonth()];
+        if (data[updatedMonth]) {
+          data[updatedMonth].stars += repo.stargazers_count;
+          data[updatedMonth].forks += repo.forks_count;
           
-          // CORRIGIDO: Estimativa mais realista de commits por mês
+          // Distribuir commits de forma mais realista pelos meses
+          const repoAge = Math.max(1, (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+          const monthsActive = Math.min(12, Math.ceil(repoAge / 30));
+          let commitsPerMonth = Math.floor(totalRepoCommits / monthsActive);
+          
+          // Garantir um mínimo realista
+          commitsPerMonth = Math.max(10, commitsPerMonth);
+          
+          // Se o repo foi atualizado recentemente, aumentar os commits do mês
           const daysSinceUpdate = (Date.now() - updatedDate.getTime()) / (1000 * 60 * 60 * 24);
-          let monthlyCommits = 0;
-          
           if (daysSinceUpdate <= 30) {
-            // Repositório ativo este mês
-            monthlyCommits = Math.floor(Math.random() * 15) + 5; // 5-20 commits
-          } else if (daysSinceUpdate <= 90) {
-            // Repositório moderadamente ativo
-            monthlyCommits = Math.floor(Math.random() * 8) + 2; // 2-10 commits
-          } else {
-            // Repositório menos ativo
-            monthlyCommits = Math.floor(Math.random() * 3) + 1; // 1-4 commits
+            commitsPerMonth *= 2;
           }
           
-          // Ajustar por popularidade
-          if (repo.stargazers_count > 10) {
-            monthlyCommits = Math.floor(monthlyCommits * 1.2);
-          }
-          
-          data[updatedKey].commits += monthlyCommits;
+          data[updatedMonth].commits += commitsPerMonth;
         }
       }
     });
@@ -326,7 +382,7 @@ export const useDashboardData = () => {
         return monthOrder.indexOf(a.date) - monthOrder.indexOf(b.date);
       })
       .slice(-6); // Últimos 6 meses
-  }, [filteredRepositories]);
+  }, [filteredRepositories, stableCommitEstimates]);
 
   // Otimizar repositoryMetrics
   const repositoryMetrics: RepositoryMetrics[] = useMemo(() => {
@@ -376,31 +432,6 @@ export const useDashboardData = () => {
       setIsRefreshing(false);
     }
   }, [fetchRepositories, fetchUser, isRefreshing]);
-
-  // Memoizar fetchCommits para usar no useEffect
-  const memoizedFetchCommits = useCallback((repoName: string, branch: string) => {
-    return fetchCommits(repoName, branch);
-  }, [fetchCommits]);
-
-  // Otimizar busca de commits - apenas quando necessário para enriquecer dados
-  useEffect(() => {
-    if (!repositories.length || isRefreshing) return;
-    
-    const fetchCommitsFromRepositories = async () => {
-      const recentRepos = repositories.slice(0, 3);
-
-      for (const repo of recentRepos) {
-        try {
-          await memoizedFetchCommits(repo.full_name, repo.default_branch);
-        } catch (error) {
-          console.error(`Erro ao buscar commits do repositório ${repo.name}:`, error);
-        }
-      }
-    };
-
-    const timeoutId = setTimeout(fetchCommitsFromRepositories, 1000);
-    return () => clearTimeout(timeoutId);
-  }, [repositories, isRefreshing, memoizedFetchCommits]);
 
   return {
     // Data
