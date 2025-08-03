@@ -7,7 +7,7 @@ export { default as AppLayout } from './AppLayout';
 export { default as ViewRenderer } from './ViewRenderer';
 
 // Componentes de views
-export { default as Dashboard } from './Dashboard';
+export { default as Dashboard } from './Dashboard/Dashboard';
 export { default as RepositoryList } from './RepositoryList';
 export { default as CommitHistory } from './CommitHistory';
 export { default as UserProfile } from './UserProfile';

@@ -3,7 +3,7 @@ import { BarChart3 } from 'lucide-react';
 import type { ViewType } from '../types/app';
 
 // Componentes das views
-import Dashboard from './Dashboard';
+import Dashboard from './Dashboard/Dashboard';
 import RepositoryList from './RepositoryList';
 import CommitHistory from './CommitHistory';
 import UserProfile from './UserProfile';

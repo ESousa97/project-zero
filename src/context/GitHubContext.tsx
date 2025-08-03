@@ -226,6 +226,28 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [services]);
 
+  // 🔥 AUTO-LOAD EFFECT - PRINCIPAL CORREÇÃO
+  useEffect(() => {
+    const initializeData = async () => {
+      // Só carrega se temos token, services e ainda não carregamos dados
+      if (token && services && !state.data.user && !state.loading.loadingUser) {
+        console.log('🚀 Auto-loading GitHub data...');
+        try {
+          // Busca dados do usuário e repositórios automaticamente
+          await Promise.all([
+            services.fetchUser(),
+            services.fetchRepositories()
+          ]);
+          console.log('✅ GitHub data loaded successfully');
+        } catch (error) {
+          console.error('❌ Failed to auto-load GitHub data:', error);
+        }
+      }
+    };
+
+    initializeData();
+  }, [token, services, state.data.user, state.loading.loadingUser]); // Dependências corretas
+
   // Atualização automática de loading geral
   useEffect(() => {
     const isLoading = state.loading.loadingRepositories || 
