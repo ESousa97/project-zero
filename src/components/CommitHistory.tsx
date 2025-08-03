@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   GitCommit, Calendar, User, ExternalLink, Search, Hash, Plus, Minus, 
   Clock, Code, FileText, Target, TrendingUp, BarChart3, Activity, MessageSquare, 
@@ -13,6 +13,7 @@ import type { Commit } from '../types/github';
 type TimeFilter = 'all' | 'hour' | 'day' | 'week' | 'month' | 'year';
 type SortBy = 'date' | 'author' | 'additions' | 'deletions' | 'changes';
 type ViewMode = 'list' | 'timeline' | 'analytics';
+type CommitType = 'feat' | 'fix' | 'docs' | 'style' | 'refactor' | 'test' | 'chore' | 'other';
 
 interface CommitAnalytics {
   totalCommits: number;
@@ -50,17 +51,26 @@ const CommitHistory: React.FC = () => {
   const [selectedAuthor, setSelectedAuthor] = useState<string>('all');
   const [showAnalytics, setShowAnalytics] = useState(true);
 
-  // Buscar commits automaticamente quando repo/branch mudar
+  // Memoizar fetchCommits para usar no useEffect
+  const memoizedFetchCommits = useCallback((repo: string, branch: string) => {
+    fetchCommits(repo, branch);
+  }, [fetchCommits]);
+
+  // Otimizar useEffect para fetchCommits
   useEffect(() => {
-    if (selectedRepo && selectedBranch) {
-      fetchCommits(selectedRepo, selectedBranch);
+    if (selectedRepo && selectedBranch && !loading) {
+      const timeoutId = setTimeout(() => {
+        memoizedFetchCommits(selectedRepo, selectedBranch);
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [selectedRepo, selectedBranch, fetchCommits]);
+  }, [selectedRepo, selectedBranch, loading, memoizedFetchCommits]);
 
   // Processar commits com informações estendidas
-  type CommitType = 'feat' | 'fix' | 'docs' | 'style' | 'refactor' | 'test' | 'chore' | 'other';
-
   const extendedCommits: ExtendedCommit[] = useMemo(() => {
+    if (!commits.length) return [];
+    
     return commits.map(commit => {
       const message = commit.commit.message;
       const date = new Date(commit.commit.author.date);
@@ -88,7 +98,7 @@ const CommitHistory: React.FC = () => {
     });
   }, [commits]);
 
-  // Calcular analytics avançadas
+  // Memoizar analytics
   const analytics: CommitAnalytics = useMemo(() => {
     if (!extendedCommits.length) return {
       totalCommits: 0,
@@ -184,7 +194,7 @@ const CommitHistory: React.FC = () => {
     };
   }, [extendedCommits]);
 
-  // Filtrar commits
+  // Memoizar filteredCommits
   const filteredCommits = useMemo(() => {
     let filtered = [...extendedCommits];
 
@@ -241,7 +251,7 @@ const CommitHistory: React.FC = () => {
     return filtered;
   }, [extendedCommits, searchTerm, selectedAuthor, timeFilter, sortBy]);
 
-  // Autores únicos para filtro
+  // Memoizar uniqueAuthors
   const uniqueAuthors = useMemo(() => {
     return [...new Set(extendedCommits.map(commit => commit.commit.author.name))].sort();
   }, [extendedCommits]);
@@ -270,7 +280,7 @@ const CommitHistory: React.FC = () => {
     return `${Math.floor(diffInSeconds / 2592000)}m atrás`;
   };
 
-  const getCommitTypeColor = (type: ExtendedCommit['commitType']) => {
+  const getCommitTypeColor = (type: CommitType | undefined) => {
     const colors = {
       feat: 'bg-green-500',
       fix: 'bg-red-500',
@@ -284,7 +294,7 @@ const CommitHistory: React.FC = () => {
     return colors[type || 'other'];
   };
 
-  const getCommitTypeLabel = (type: ExtendedCommit['commitType']) => {
+  const getCommitTypeLabel = (type: CommitType | undefined) => {
     const labels = {
       feat: 'FEAT',
       fix: 'FIX',
@@ -689,7 +699,6 @@ const CommitHistory: React.FC = () => {
 
                     {/* Commit Info */}
                     <div className="flex-1 min-w-0">
-                      {/* Commit Type Badge e Message */}
                       <div className="flex items-start gap-3 mb-3">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${getCommitTypeColor(commit.commitType)}`}>
                           {getCommitTypeLabel(commit.commitType)}

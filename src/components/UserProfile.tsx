@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import { 
   MapPin, Building, Mail, Calendar, GitBranch, Star, 
   Users, BookOpen, ExternalLink, Award, Activity,
@@ -34,63 +34,53 @@ interface AchievementBadge {
 }
 
 const UserProfile: React.FC = () => {
-  // Extraímos do contexto GitHub usuário, repositórios, commits e métodos auxiliares
   const { user, repositories, commits, loading, fetchUser } = useGitHub();
 
-  // Ao montar o componente, se usuário não estiver carregado, disparar busca
-  useEffect(() => {
-    if (!user) {
-      fetchUser();
-    }
-  }, [user, fetchUser]);
+  // Memoizar fetchUser para usar no useEffect
+  const memoizedFetchUser = useCallback(() => {
+    fetchUser();
+  }, [fetchUser]);
 
-  /**
-   * Cálculos avançados de estatísticas baseadas nos repositórios e usuário.
-   * Usamos useMemo para evitar cálculos desnecessários.
-   */
+  // Otimizar useEffect - apenas executar quando necessário
+  useEffect(() => {
+    if (!user && !loading) {
+      memoizedFetchUser();
+    }
+  }, [user, loading, memoizedFetchUser]);
+
+  // Memoizar cálculos avançados com dependências específicas
   const advancedStats = useMemo(() => {
     if (!repositories.length) return null;
 
-    // Soma de stars, forks, watchers, issues e tamanho total
     const totalStars = repositories.reduce((sum, repo) => sum + repo.stargazers_count, 0);
     const totalForks = repositories.reduce((sum, repo) => sum + repo.forks_count, 0);
     const totalWatchers = repositories.reduce((sum, repo) => sum + repo.watchers_count, 0);
     const totalIssues = repositories.reduce((sum, repo) => sum + repo.open_issues_count, 0);
     const totalSize = repositories.reduce((sum, repo) => sum + repo.size, 0);
 
-    // Linguagens únicas usadas nos repositórios
     const languages = [...new Set(repositories.map(repo => repo.language).filter(Boolean))];
-
-    // Contagem de repositórios públicos e privados
     const publicRepos = repositories.filter(repo => !repo.private).length;
     const privateRepos = repositories.length - publicRepos;
 
-    // Quantidade de repositórios criados por ano
     const reposByYear = repositories.reduce((acc, repo) => {
       const year = new Date(repo.created_at).getFullYear();
       acc[year] = (acc[year] || 0) + 1;
       return acc;
     }, {} as Record<number, number>);
 
-    // Quantidade de repositórios atualizados nos últimos 30 dias
     const recentActivity = repositories.filter(repo => {
       const daysSinceUpdate = (Date.now() - new Date(repo.updated_at).getTime()) / (1000 * 60 * 60 * 24);
       return daysSinceUpdate <= 30;
     }).length;
 
-    // Repositório com mais stars
     const mostStarredRepo = repositories.reduce((prev, current) => 
       prev.stargazers_count > current.stargazers_count ? prev : current
     );
 
-    // Média de stars por repositório
     const avgStarsPerRepo = totalStars / repositories.length;
-
-    // Streaks de commits (valores simulados, podem ser ajustados com dados reais)
     const currentStreak = 15;
     const longestStreak = 45;
 
-    // Score do desenvolvedor com base em diversos fatores
     const developerScore = Math.min(100, (
       (totalStars * 0.3) + 
       (totalForks * 0.2) + 
@@ -99,14 +89,13 @@ const UserProfile: React.FC = () => {
       (user?.followers || 0) * 0.5
     ));
 
-    // Retornamos todas as estatísticas calculadas, formatadas quando necessário
     return {
       totalRepos: repositories.length,
       totalStars,
       totalForks,
       totalWatchers,
       totalIssues,
-      totalSize: Math.round(totalSize / 1024), // Convertido para MB
+      totalSize: Math.round(totalSize / 1024),
       languages: languages.length,
       publicRepos,
       privateRepos,
@@ -119,16 +108,15 @@ const UserProfile: React.FC = () => {
       longestStreak,
       developerScore: Math.round(developerScore),
       accountAge: Math.floor((Date.now() - new Date(user?.created_at || '').getTime()) / (1000 * 60 * 60 * 24)),
-      contributionsThisYear: commits.length || 156, // Valor simulado para commits no ano
+      contributionsThisYear: commits.length || 156,
       avgCommitsPerDay: ((commits.length || 156) / 365).toFixed(1),
     };
-  }, [repositories, user, commits]);
+  }, [repositories, user?.followers, user?.created_at, commits.length]); // Dependências específicas
 
-  /**
-   * Calcula a contribuição por linguagem, agregando dados de repositórios, stars e commits.
-   * Usamos cores distintas para cada linguagem para visualização gráfica.
-   */
+  // Memoizar contribuições por linguagem
   const languageContributions: LanguageContribution[] = useMemo(() => {
+    if (!repositories.length) return [];
+    
     const langMap = new Map<string, { repos: number; stars: number; commits: number }>();
 
     repositories.forEach(repo => {
@@ -137,12 +125,11 @@ const UserProfile: React.FC = () => {
         langMap.set(repo.language, {
           repos: current.repos + 1,
           stars: current.stars + repo.stargazers_count,
-          commits: current.commits + Math.floor(Math.random() * 50) + 10, // Simulação para commits
+          commits: current.commits + Math.floor(Math.random() * 50) + 10,
         });
       }
     });
 
-    // Paleta de cores para as linguagens
     const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'];
     const totalRepos = repositories.length;
 
@@ -159,19 +146,14 @@ const UserProfile: React.FC = () => {
       .slice(0, 8);
   }, [repositories]);
 
-  /**
-   * Dados simulados de atividade mensal para visualização gráfica.
-   * Mostra commits, repositórios criados, stars e pull requests por mês.
-   */
+  // Memoizar dados de atividade
   const activityData = useMemo(() => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const currentYear = new Date().getFullYear();
 
     return months.map((month, index) => {
-      // Simulação de atividade base
       const baseActivity = Math.floor(Math.random() * 30) + 10;
 
-      // Repositórios criados no mês e ano atuais
       const reposCreated = repositories.filter(repo => {
         const repoDate = new Date(repo.created_at);
         return repoDate.getFullYear() === currentYear && repoDate.getMonth() === index;
@@ -187,9 +169,7 @@ const UserProfile: React.FC = () => {
     });
   }, [repositories]);
 
-  /**
-   * Lista de badges de conquistas, cada uma com condição de ganho e progresso visualizado.
-   */
+  // Memoizar achievements
   const achievements: AchievementBadge[] = useMemo(() => {
     if (!advancedStats) return [];
 
@@ -271,7 +251,7 @@ const UserProfile: React.FC = () => {
         earned: advancedStats.accountAge >= 730,
       },
     ];
-  }, [advancedStats, user]);
+  }, [advancedStats, user?.followers]);
 
   // Renderiza tela de loading enquanto dados não estão carregados
   if (loading && !user) {

@@ -56,15 +56,19 @@ const Settings: React.FC = () => {
     }
   }, []);
 
-  // Salva configurações automaticamente quando há mudanças
+  // Debounce para salvar configurações - evitar writes excessivos
   useEffect(() => {
-    const settings: SettingsData = {
-      darkMode,
-      notifications,
-      autoRefresh,
-      refreshInterval,
-    };
-    localStorage.setItem('app_settings', JSON.stringify(settings));
+    const timeoutId = setTimeout(() => {
+      const settings: SettingsData = {
+        darkMode,
+        notifications,
+        autoRefresh,
+        refreshInterval,
+      };
+      localStorage.setItem('app_settings', JSON.stringify(settings));
+    }, 1000); // Debounce de 1 segundo
+
+    return () => clearTimeout(timeoutId);
   }, [darkMode, notifications, autoRefresh, refreshInterval]);
 
   // Atualiza token no contexto e limpa erros

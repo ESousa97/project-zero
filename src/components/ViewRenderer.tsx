@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { BarChart3 } from 'lucide-react';
 import type { ViewType } from '../types/app';
 
@@ -15,7 +15,7 @@ interface ViewRendererProps {
   darkMode?: boolean;
 }
 
-const ViewRenderer: React.FC<ViewRendererProps> = ({
+const ViewRenderer: React.FC<ViewRendererProps> = memo(({
   currentView,
   onViewChange,
   darkMode = true,
@@ -97,6 +97,8 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
       {renderContent()}
     </div>
   );
-};
+});
+
+ViewRenderer.displayName = 'ViewRenderer';
 
 export default ViewRenderer;

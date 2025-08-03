@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, GitBranch, Star, Eye, GitCommit, Lock, Unlock, ExternalLink, 
   Calendar, RefreshCw, Filter, BarChart3, Activity, Code2,
@@ -66,21 +66,27 @@ const RepositoryList: React.FC = () => {
   const [selectedRepos, setSelectedRepos] = useState<number[]>([]);
   const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter' | 'year' | 'all'>('all');
 
-  // Busca repositórios se ainda não estiverem carregados
-  useEffect(() => {
-    if (repositories.length === 0) {
-      fetchRepositories();
-    }
-  }, [repositories.length, fetchRepositories]);
+  // Memoizar fetchRepositories para usar no useEffect
+  const memoizedFetchRepositories = useCallback(() => {
+    fetchRepositories();
+  }, [fetchRepositories]);
 
-  // Calcula métricas principais para cada repositório
+  // Otimizar useEffect - apenas quando necessário
+  useEffect(() => {
+    if (repositories.length === 0 && !loading) {
+      memoizedFetchRepositories();
+    }
+  }, [repositories.length, loading, memoizedFetchRepositories]);
+
+  // Memoizar métricas de repositórios
   const repositoryMetrics: RepositoryMetrics[] = useMemo(() => {
+    if (!repositories.length) return [];
+    
     const now = new Date();
     return repositories.map(repo => {
       const updated = new Date(repo.updated_at);
       const daysSinceUpdate = (now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24);
 
-      // Cálculo simples de atividade, popularidade, engajamento e saúde
       const activity = Math.max(0, 100 - daysSinceUpdate * 2);
       const popularity = Math.min(100, (repo.stargazers_count + repo.forks_count) * 2);
       const engagement = repo.stargazers_count > 0 
@@ -106,8 +112,10 @@ const RepositoryList: React.FC = () => {
     });
   }, [repositories]);
 
-  // Calcula métricas agregadas por linguagem
+  // Memoizar métricas de linguagem
   const languageMetrics: LanguageMetrics[] = useMemo(() => {
+    if (!repositories.length) return [];
+    
     const languageMap = new Map<string, { count: number; totalStars: number; totalSize: number }>();
     
     repositories.forEach(repo => {
@@ -135,15 +143,16 @@ const RepositoryList: React.FC = () => {
       .sort((a, b) => b.count - a.count);
   }, [repositories]);
 
-  // Métricas de atividade mensal (criação e atualização)
+  // Memoizar métricas de atividade
   const activityMetrics: ActivityMetrics[] = useMemo(() => {
+    if (!repositories.length) return [];
+    
     const monthlyData = new Map<string, { created: number; updated: number }>();
     
     repositories.forEach(repo => {
       const createdMonth = new Date(repo.created_at).toISOString().slice(0, 7);
       const updatedMonth = new Date(repo.updated_at).toISOString().slice(0, 7);
       
-      // Incrementa contadores de criação e atualização por mês
       const createdData = monthlyData.get(createdMonth) || { created: 0, updated: 0 };
       monthlyData.set(createdMonth, { ...createdData, created: createdData.created + 1 });
       
@@ -162,7 +171,7 @@ const RepositoryList: React.FC = () => {
       .slice(-12);
   }, [repositories]);
 
-  // Filtra e ordena os repositórios conforme estado atual
+  // Otimizar filteredRepositories com dependências específicas
   const filteredRepositories = useMemo(() => {
     return repositories.filter(repo => {
       const searchTermLower = searchTerm.toLowerCase();
@@ -219,13 +228,28 @@ const RepositoryList: React.FC = () => {
     });
   }, [repositories, searchTerm, sortBy, filterBy, languageFilter, dateRange]);
 
-  // Extrai linguagens únicas para uso no filtro
+  // Memoizar languages para filtro
   const languages = useMemo(() => {
     return Array.from(new Set(repositories.map(r => r.language).filter(Boolean))).sort();
   }, [repositories]);
 
-  // Estatísticas agregadas para o painel superior
+  // Memoizar stats
   const stats = useMemo(() => {
+    if (!repositories.length) return {
+      total: 0,
+      totalStars: 0,
+      totalForks: 0,
+      totalSize: '0',
+      avgStars: '0',
+      publicRepos: 0,
+      privateRepos: 0,
+      archivedRepos: 0,
+      templateRepos: 0,
+      activeRepos: 0,
+      inactiveRepos: 0,
+    };
+
+    const now = new Date();
     const totalStars = repositories.reduce((sum, repo) => sum + repo.stargazers_count, 0);
     const totalForks = repositories.reduce((sum, repo) => sum + repo.forks_count, 0);
     const totalSize = repositories.reduce((sum, repo) => sum + repo.size, 0);
@@ -237,7 +261,7 @@ const RepositoryList: React.FC = () => {
     const templateRepos = repositories.filter(repo => repo.is_template).length;
     
     const activeRepos = repositories.filter(repo => {
-      const daysSinceUpdate = (Date.now() - new Date(repo.updated_at).getTime()) / (1000 * 60 * 60 * 24);
+      const daysSinceUpdate = (now.getTime() - new Date(repo.updated_at).getTime()) / (1000 * 60 * 60 * 24);
       return daysSinceUpdate <= 30;
     }).length;
 

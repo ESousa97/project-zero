@@ -107,7 +107,13 @@ const StatsGrid: React.FC<StatsGridProps> = ({
               <div className="flex items-center space-x-1 text-green-400">
                 <GitCommit className="w-4 h-4" />
                 <span className="text-sm font-medium">
-                  {timeRange === 'ALL' ? 'Total estimado' : 'No período'}
+                  {timeRange === 'ALL' ? 'Total estimado' : `Período: ${timeRange}`}
+                </span>
+              </div>
+              {/* ADICIONADO: Indicador se são dados reais ou estimados */}
+              <div className="mt-1">
+                <span className="text-xs text-slate-500">
+                  {currentPeriodData.commits > 0 ? 'Baseado em atividade real' : 'Dados não disponíveis'}
                 </span>
               </div>
             </div>
@@ -124,7 +130,9 @@ const StatsGrid: React.FC<StatsGridProps> = ({
               <p className="text-lg font-bold text-white">Repositórios</p>
               <div className="text-xs text-slate-400 space-y-1">
                 <div>Período: {timeRange}</div>
-                <div>Commits: {currentPeriodData.commits}</div>
+                <div>Repos filtrados: {currentPeriodData.repositories}</div>
+                <div>Commits calculados: {currentPeriodData.commits}</div>
+                <div>Repos ativos: {currentPeriodData.activeRepos}</div>
               </div>
             </div>
             <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg">

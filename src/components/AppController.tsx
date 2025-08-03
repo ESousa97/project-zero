@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   GitBranch, Settings, User, Activity, GitCommit 
 } from 'lucide-react';
@@ -33,14 +33,12 @@ export interface AppState {
 }
 
 export const useAppController = (): AppState => {
-  // Estados locais
   const [currentView, setCurrentViewState] = useState<ViewType>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastSync, setLastSync] = useState<Date>(new Date());
 
-  // GitHub context
   const { 
     repositories, 
     error, 
@@ -49,11 +47,16 @@ export const useAppController = (): AppState => {
     clearAllErrors 
   } = useGitHub();
 
-  // Sistema de notificações
   const notificationManager = useNotificationManager();
 
-  // Menu items com badges dinâmicos
-  const menuItems: MenuItem[] = [
+  // Otimizar callbacks com useCallback - mover para antes do useMemo
+  const setCurrentView = useCallback((view: ViewType) => {
+    setCurrentViewState(view);
+    clearAllErrors();
+  }, [clearAllErrors]);
+
+  // Memoizar menu items para evitar recriações
+  const menuItems: MenuItem[] = useMemo(() => [
     { 
       id: 'dashboard', 
       label: 'Dashboard', 
@@ -85,10 +88,10 @@ export const useAppController = (): AppState => {
       icon: Settings, 
       description: 'Configurações avançadas e preferências'
     }
-  ];
+  ], [repositories.length]);
 
-  // Breadcrumb items baseados na view atual
-  const breadcrumbItems: BreadcrumbItem[] = [
+  // Memoizar breadcrumb items
+  const breadcrumbItems: BreadcrumbItem[] = useMemo(() => [
     {
       label: 'Início',
       onClick: () => setCurrentView('dashboard'),
@@ -98,13 +101,7 @@ export const useAppController = (): AppState => {
       label: menuItems.find(item => item.id === currentView)?.label || 'Página',
       isActive: true
     }
-  ];
-
-  // Ações principais
-  const setCurrentView = useCallback((view: ViewType) => {
-    setCurrentViewState(view);
-    clearAllErrors();
-  }, [clearAllErrors]);
+  ], [currentView, menuItems, setCurrentView]);
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed(prev => !prev);
@@ -118,28 +115,29 @@ export const useAppController = (): AppState => {
     });
   }, []);
 
-  const handleRefresh = useCallback(() => {
-    refreshAll().then(() => {
+  const handleRefresh = useCallback(async () => {
+    try {
+      await refreshAll();
       setLastSync(new Date());
       notificationManager.addNotification({
         type: 'success',
         title: 'Dados Atualizados',
         message: 'Seus dados do GitHub foram sincronizados com sucesso'
       });
-    }).catch(() => {
+    } catch {
       notificationManager.addNotification({
         type: 'error',
         title: 'Erro na Sincronização',
         message: 'Não foi possível atualizar os dados. Tente novamente.'
       });
-    });
+    }
   }, [refreshAll, notificationManager]);
 
   const handleUserProfileClick = useCallback(() => {
     setCurrentView('profile');
   }, [setCurrentView]);
 
-  // Carregamento de preferências salvas
+  // Carregar preferências apenas uma vez
   useEffect(() => {
     const savedDarkMode = localStorage.getItem('darkMode');
     if (savedDarkMode) {
@@ -151,7 +149,7 @@ export const useAppController = (): AppState => {
     }
   }, []);
 
-  // Auto-refresh funcionalidade
+  // Auto-refresh otimizado
   useEffect(() => {
     if (!token) return;
 
@@ -159,12 +157,12 @@ export const useAppController = (): AppState => {
       if (isOnline && document.visibilityState === 'visible') {
         handleRefresh();
       }
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, [token, handleRefresh, isOnline]);
 
-  // Detecção online/offline
+  // Online/offline detection otimizada - incluir notificationManager
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -193,7 +191,7 @@ export const useAppController = (): AppState => {
     };
   }, [notificationManager]);
 
-  // Tratamento de erros com notificações
+  // Error handling otimizado - incluir todas as dependências
   useEffect(() => {
     if (error) {
       notificationManager.addNotification({
@@ -211,7 +209,7 @@ export const useAppController = (): AppState => {
     }
   }, [error, clearAllErrors, handleRefresh, notificationManager]);
 
-  // Atalhos de teclado
+  // Keyboard shortcuts otimizados - incluir notificationManager
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey) {
@@ -247,7 +245,6 @@ export const useAppController = (): AppState => {
         }
       }
       
-      // ESC para fechar notificações
       if (event.key === 'Escape' && notificationManager.showNotifications) {
         notificationManager.toggleShow();
       }
