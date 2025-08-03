@@ -1,4 +1,4 @@
-// src/components/CommitHistory/types.ts - Arquivo Separado
+// src/components/CommitHistory/types.ts - CORRIGIDO
 export type TimeFilter = 'all' | 'hour' | 'day' | 'week' | 'month' | 'year';
 export type SortBy = 'date' | 'author' | 'additions' | 'deletions' | 'changes';
 export type ViewMode = 'list' | 'timeline' | 'analytics';
@@ -18,10 +18,12 @@ export interface CommitAnalytics {
   dailyActivity: { date: string; commits: number; additions: number; deletions: number }[];
 }
 
+// CORREÇÃO: Definir ExtendedCommit com tipos corretos
 export interface ExtendedCommit {
   sha: string;
   commit: {
     message: string;
+    // CORREÇÃO: author é obrigatório e sempre definido após normalização
     author: {
       name: string;
       email: string;
@@ -33,6 +35,7 @@ export interface ExtendedCommit {
       date: string;
     };
   };
+  // CORREÇÃO: author do GitHub permanece opcional
   author?: {
     login: string;
     avatar_url: string;

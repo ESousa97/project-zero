@@ -1,6 +1,6 @@
-// src/components/CommitHistory/CommitHistoryHeader.tsx
+// src/components/CommitHistory/CommitHistoryHeader.tsx - Simplificado
 import React from 'react';
-import { GitCommit } from 'lucide-react';
+import { GitCommit, BarChart3, List, Clock } from 'lucide-react';
 import type { ViewMode } from './types';
 
 interface CommitHistoryHeaderProps {
@@ -45,9 +45,24 @@ const CommitHistoryHeader: React.FC<CommitHistoryHeaderProps> = ({
                 : 'text-slate-400 hover:text-white hover:bg-slate-700'
             }`}
           >
-            {mode === 'list' && 'Lista'}
-            {mode === 'timeline' && 'Timeline'}
-            {mode === 'analytics' && 'Analytics'}
+            {mode === 'list' && (
+              <>
+                <List className="w-4 h-4 inline mr-2" />
+                Lista
+              </>
+            )}
+            {mode === 'timeline' && (
+              <>
+                <Clock className="w-4 h-4 inline mr-2" />
+                Timeline
+              </>
+            )}
+            {mode === 'analytics' && (
+              <>
+                <BarChart3 className="w-4 h-4 inline mr-2" />
+                Analytics
+              </>
+            )}
           </button>
         ))}
       </div>

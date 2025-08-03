@@ -1,4 +1,3 @@
-// =======================================================================
 // src/components/CommitHistory/hooks/useCommitFilters.ts - CORRIGIDO
 import { useState, useCallback, useMemo } from 'react';
 import type { ExtendedCommit, CommitFiltersState, CommitType } from '../types';
@@ -35,26 +34,32 @@ export const useCommitFilters = (commits: Commit[]) => {
       else if (lowerMessage.startsWith('test')) commitType = 'test';
       else if (lowerMessage.startsWith('chore')) commitType = 'chore';
 
-      // Normalizar author para evitar null
-      const normalizedAuthor = commit.author
-        ? { login: commit.author.login, avatar_url: commit.author.avatar_url }
-        : undefined;
+      // CORREÇÃO: Garantir que commit.author seja sempre definido
+      const normalizedCommitAuthor = {
+        name: commit.commit.author?.name || 'Unknown',
+        email: commit.commit.author?.email || 'unknown@email.com',
+        date: commit.commit.author?.date || new Date().toISOString()
+      };
 
-      // Também pode normalizar commit.author se necessário (aqui mantido igual)
-      const normalizedCommitAuthor = commit.commit.author
-        ? {
-            name: commit.commit.author.name,
-            email: commit.commit.author.email,
-            date: commit.commit.author.date
-          }
-        : undefined;
+      // CORREÇÃO: Garantir que commit.committer seja sempre definido
+      const normalizedCommitCommitter = {
+        name: commit.commit.committer?.name || normalizedCommitAuthor.name,
+        email: commit.commit.committer?.email || normalizedCommitAuthor.email,
+        date: commit.commit.committer?.date || normalizedCommitAuthor.date
+      };
 
       return {
         ...commit,
-        author: normalizedAuthor,
+        // CORREÇÃO: Manter author opcional mas consistente
+        author: commit.author ? {
+          login: commit.author.login,
+          avatar_url: commit.author.avatar_url
+        } : undefined,
+        // CORREÇÃO: Garantir que commit.author seja sempre definido
         commit: {
           ...commit.commit,
-          author: normalizedCommitAuthor
+          author: normalizedCommitAuthor,
+          committer: normalizedCommitCommitter
         },
         commitType,
         messageLength: message.length,
@@ -74,21 +79,21 @@ export const useCommitFilters = (commits: Commit[]) => {
     if (filters.searchTerm) {
       filtered = filtered.filter(commit => 
         commit.commit.message.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        commit.commit.author?.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+        commit.commit.author.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
         commit.sha.toLowerCase().includes(filters.searchTerm.toLowerCase())
       );
     }
 
     // Filtro por autor
     if (filters.selectedAuthor !== 'all') {
-      filtered = filtered.filter(commit => commit.commit.author?.name === filters.selectedAuthor);
+      filtered = filtered.filter(commit => commit.commit.author.name === filters.selectedAuthor);
     }
 
     // Filtro de tempo
     if (filters.timeFilter !== 'all') {
       const now = new Date();
       filtered = filtered.filter(commit => {
-        const commitDate = new Date(commit.commit.author?.date || 0);
+        const commitDate = new Date(commit.commit.author.date);
         const diffInHours = (now.getTime() - commitDate.getTime()) / (1000 * 60 * 60);
         
         switch (filters.timeFilter) {
@@ -106,9 +111,9 @@ export const useCommitFilters = (commits: Commit[]) => {
     filtered.sort((a, b) => {
       switch (filters.sortBy) {
         case 'date':
-          return new Date(b.commit.author?.date || 0).getTime() - new Date(a.commit.author?.date || 0).getTime();
+          return new Date(b.commit.author.date).getTime() - new Date(a.commit.author.date).getTime();
         case 'author':
-          return (a.commit.author?.name || '').localeCompare(b.commit.author?.name || '');
+          return a.commit.author.name.localeCompare(b.commit.author.name);
         case 'additions':
           return (b.stats?.additions || 0) - (a.stats?.additions || 0);
         case 'deletions':
@@ -125,7 +130,7 @@ export const useCommitFilters = (commits: Commit[]) => {
 
   // Autores únicos
   const uniqueAuthors = useMemo(() => {
-    return [...new Set(extendedCommits.map(commit => commit.commit.author?.name || ''))]
+    return [...new Set(extendedCommits.map(commit => commit.commit.author.name))]
       .filter(name => name !== '')
       .sort();
   }, [extendedCommits]);
@@ -137,7 +142,11 @@ export const useCommitFilters = (commits: Commit[]) => {
 
   // Resetar filtros
   const resetFilters = useCallback(() => {
-    setFilters(prev => ({ ...initialFilters, selectedRepo: prev.selectedRepo, selectedBranch: prev.selectedBranch }));
+    setFilters(prev => ({ 
+      ...initialFilters, 
+      selectedRepo: prev.selectedRepo, 
+      selectedBranch: prev.selectedBranch 
+    }));
   }, []);
 
   return {

@@ -1,6 +1,6 @@
-// src/components/CommitHistory/CommitTimeline.tsx
+// src/components/CommitHistory/CommitTimeline.tsx - Layout Melhorado
 import React from 'react';
-import { GitCommit, User, Plus, Minus, ExternalLink, Activity } from 'lucide-react';
+import { GitCommit, User, Plus, Minus, ExternalLink, Activity, Calendar, Hash, Globe } from 'lucide-react';
 import type { ExtendedCommit, CommitType } from './types';
 
 interface CommitTimelineProps {
@@ -21,184 +21,236 @@ const CommitTimeline: React.FC<CommitTimelineProps> = ({ commits }) => {
     return `${Math.floor(diffInSeconds / 2592000)}m atrás`;
   };
 
-  const getCommitTypeColor = (type: CommitType | undefined) => {
-    const colors = {
-      feat: 'bg-green-500',
-      fix: 'bg-red-500',
-      docs: 'bg-blue-500',
-      style: 'bg-purple-500',
-      refactor: 'bg-yellow-500',
-      test: 'bg-orange-500',
-      chore: 'bg-gray-500',
-      other: 'bg-slate-500'
+  const getCommitTypeConfig = (type: CommitType | undefined) => {
+    const configs = {
+      feat: { bg: 'bg-green-500', border: 'border-green-400', text: 'text-green-400', label: 'FEAT' },
+      fix: { bg: 'bg-red-500', border: 'border-red-400', text: 'text-red-400', label: 'FIX' },
+      docs: { bg: 'bg-blue-500', border: 'border-blue-400', text: 'text-blue-400', label: 'DOCS' },
+      style: { bg: 'bg-purple-500', border: 'border-purple-400', text: 'text-purple-400', label: 'STYLE' },
+      refactor: { bg: 'bg-yellow-500', border: 'border-yellow-400', text: 'text-yellow-400', label: 'REFACTOR' },
+      test: { bg: 'bg-orange-500', border: 'border-orange-400', text: 'text-orange-400', label: 'TEST' },
+      chore: { bg: 'bg-gray-500', border: 'border-gray-400', text: 'text-gray-400', label: 'CHORE' },
+      other: { bg: 'bg-slate-500', border: 'border-slate-400', text: 'text-slate-400', label: 'OTHER' }
     };
-    return colors[type || 'other'];
+    return configs[type || 'other'];
   };
 
-  const getCommitTypeLabel = (type: CommitType | undefined) => {
-    const labels = {
-      feat: 'FEAT',
-      fix: 'FIX',
-      docs: 'DOCS',
-      style: 'STYLE',
-      refactor: 'REFACTOR',
-      test: 'TEST',
-      chore: 'CHORE',
-      other: 'OTHER'
-    };
-    return labels[type || 'other'];
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-      <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-        <Activity className="w-5 h-5 mr-2 text-blue-400" />
-        Timeline de Commits ({commits.length} commits)
-      </h3>
-      
+    <div className="space-y-6">
+      {/* Timeline Header */}
+      <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Activity className="w-5 h-5 text-blue-400" />
+            <h3 className="text-lg font-semibold text-white">
+              Timeline de Commits
+            </h3>
+            <span className="bg-blue-600/20 text-blue-400 px-2 py-1 rounded text-sm font-medium">
+              {commits.length} commits
+            </span>
+          </div>
+          
+          {/* Legend */}
+          <div className="flex items-center gap-3 text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-slate-400">Features</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span className="text-slate-400">Fixes</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-slate-400">Docs</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
+              <span className="text-slate-400">Outros</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Timeline Content */}
       <div className="relative">
         {/* Timeline Line */}
-        <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-600"></div>
+        <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 via-purple-500 to-slate-600"></div>
         
         <div className="space-y-6">
-          {commits.map((commit) => (
-            <div key={commit.sha} className="relative flex items-start space-x-4">
-              {/* Timeline Dot */}
-              <div className={`relative z-10 w-12 h-12 rounded-full border-4 border-slate-800 flex items-center justify-center ${getCommitTypeColor(commit.commitType)}`}>
-                <GitCommit className="w-5 h-5 text-white" />
-              </div>
-              
-              {/* Timeline Content */}
-              <div className="flex-1 bg-slate-700/30 rounded-lg p-4 border border-slate-600 hover:border-slate-500 transition-all duration-200">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`px-2 py-1 rounded text-xs font-medium text-white ${getCommitTypeColor(commit.commitType)}`}>
-                        {getCommitTypeLabel(commit.commitType)}
-                      </span>
-                      <span className="text-slate-400 text-sm">
-                        {getTimeAgo(commit.commit.author.date)}
-                      </span>
-                      {commit.repository && (
-                        <span className="text-indigo-400 text-sm">
-                          📦 {commit.repository.name}
+          {commits.map((commit, _index) => {
+            const typeConfig = getCommitTypeConfig(commit.commitType);
+            
+            return (
+              <div key={commit.sha} className="relative flex items-start gap-6">
+                {/* Timeline Dot */}
+                <div className={`relative z-10 w-16 h-16 rounded-full border-4 border-slate-800 ${typeConfig.bg} flex items-center justify-center shadow-lg`}>
+                  <GitCommit className="w-6 h-6 text-white" />
+                  {/* Type Badge */}
+                  <div className={`absolute -top-1 -right-1 w-6 h-6 ${typeConfig.bg} rounded-full border-2 border-slate-800 flex items-center justify-center`}>
+                    <span className="text-xs font-bold text-white">
+                      {typeConfig.label.charAt(0)}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Timeline Content */}
+                <div className="flex-1 bg-slate-800/40 rounded-xl p-6 border border-slate-700/50 hover:border-slate-600 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      {/* Header with badges and time */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium text-white ${typeConfig.bg}`}>
+                          {typeConfig.label}
                         </span>
-                      )}
-                    </div>
-                    
-                    <h4 className="font-semibold text-white mb-1 hover:text-blue-400 transition-colors">
-                      {commit.commit.message.split('\n')[0]}
-                    </h4>
-                    
-                    {/* Extended message preview */}
-                    {commit.commit.message.split('\n').length > 1 && (
-                      <div className="text-slate-400 text-sm mb-3 max-h-16 overflow-hidden">
-                        {commit.commit.message.split('\n').slice(1).join('\n').trim()}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center gap-4 text-sm text-slate-400 mb-3">
-                      <span className="flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        {commit.commit.author.name}
-                      </span>
-                      
-                      {commit.stats && (
-                        <>
-                          <span className="flex items-center gap-1 text-green-400">
-                            <Plus className="w-3 h-3" />
-                            {commit.stats.additions}
-                          </span>
-                          <span className="flex items-center gap-1 text-red-400">
-                            <Minus className="w-3 h-3" />
-                            {commit.stats.deletions}
-                          </span>
-                        </>
-                      )}
-                      
-                      <code className="bg-slate-700 px-2 py-1 rounded text-xs font-mono">
-                        {commit.sha.substring(0, 8)}
-                      </code>
-                    </div>
+                        
+                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                          <Calendar className="w-4 h-4" />
+                          <span>{formatDate(commit.commit.author.date)}</span>
+                          <span>•</span>
+                          <span>{getTimeAgo(commit.commit.author.date)}</span>
+                        </div>
 
-                    {/* Progress Bar for Changes */}
-                    {commit.stats && commit.stats.total > 0 && (
-                      <div className="w-full bg-slate-600 rounded-full h-1.5 mb-2">
-                        <div className="flex h-1.5 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-green-500" 
-                            style={{ width: `${(commit.stats.additions / commit.stats.total) * 100}%` }}
-                          />
-                          <div 
-                            className="bg-red-500" 
-                            style={{ width: `${(commit.stats.deletions / commit.stats.total) * 100}%` }}
-                          />
+                        {commit.repository && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+                            <Globe className="w-3 h-3" />
+                            {commit.repository.name}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Commit Message */}
+                      <h4 className="font-semibold text-white mb-2 text-lg hover:text-blue-400 transition-colors leading-tight">
+                        {commit.commit.message.split('\n')[0]}
+                      </h4>
+                      
+                      {/* Extended message preview */}
+                      {commit.commit.message.split('\n').length > 1 && (
+                        <div className="text-slate-400 text-sm mb-4 bg-slate-700/30 rounded-lg p-3 max-h-16 overflow-hidden">
+                          {commit.commit.message.split('\n').slice(1).join('\n').trim()}
+                        </div>
+                      )}
+                      
+                      {/* Commit Meta */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div className="flex items-center gap-3 text-sm">
+                          <User className="w-4 h-4 text-blue-400" />
+                          <span className="text-slate-300 font-medium">
+                            {commit.commit.author.name}
+                          </span>
+                          {commit.author && (
+                            <span className="text-slate-500 text-xs">
+                              @{commit.author.login}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3 text-sm">
+                          <Hash className="w-4 h-4 text-purple-400" />
+                          <code className="bg-slate-700 px-2 py-1 rounded text-xs font-mono text-slate-300">
+                            {commit.sha.substring(0, 8)}
+                          </code>
                         </div>
                       </div>
-                    )}
 
-                    {/* Additional metrics */}
-                    <div className="flex items-center gap-3 text-xs text-slate-500">
-                      {commit.filesChanged && (
-                        <span>{commit.filesChanged} arquivos</span>
+                      {/* Stats */}
+                      {commit.stats && (
+                        <div className="bg-slate-700/30 rounded-lg p-3 mb-4">
+                          <div className="flex items-center gap-6 text-sm mb-2">
+                            <div className="flex items-center gap-2">
+                              <Plus className="w-4 h-4 text-green-400" />
+                              <span className="text-green-400 font-medium">{commit.stats.additions}</span>
+                              <span className="text-slate-400">adições</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Minus className="w-4 h-4 text-red-400" />
+                              <span className="text-red-400 font-medium">{commit.stats.deletions}</span>
+                              <span className="text-slate-400">remoções</span>
+                            </div>
+                            <div className="text-slate-400">
+                              <span className="font-medium text-white">{commit.stats.total}</span> total
+                            </div>
+                          </div>
+
+                          {/* Progress Bar */}
+                          {commit.stats.total > 0 && (
+                            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                              <div className="flex h-2">
+                                <div 
+                                  className="bg-green-500 transition-all duration-500" 
+                                  style={{ width: `${(commit.stats.additions / commit.stats.total) * 100}%` }}
+                                />
+                                <div 
+                                  className="bg-red-500 transition-all duration-500" 
+                                  style={{ width: `${(commit.stats.deletions / commit.stats.total) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
-                      {commit.linesChanged && (
-                        <span>{commit.linesChanged} linhas</span>
-                      )}
-                      {commit.messageLength && (
-                        <span>{commit.messageLength} chars</span>
-                      )}
-                      {commit.dayOfWeek && (
-                        <span>{commit.dayOfWeek}</span>
-                      )}
+
+                      {/* Additional metrics */}
+                      <div className="flex items-center gap-4 text-xs text-slate-500">
+                        {commit.filesChanged && (
+                          <span>{commit.filesChanged} arquivos alterados</span>
+                        )}
+                        {commit.linesChanged && (
+                          <span>{commit.linesChanged} linhas modificadas</span>
+                        )}
+                        {commit.messageLength && (
+                          <span>{commit.messageLength} caracteres</span>
+                        )}
+                        {commit.dayOfWeek && (
+                          <span>{commit.dayOfWeek}</span>
+                        )}
+                      </div>
                     </div>
+                    
+                    {/* External Link */}
+                    <a
+                      href={commit.html_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-slate-400 hover:text-blue-400 transition-colors flex-shrink-0 p-2 hover:bg-slate-700/50 rounded-lg"
+                      title="Ver commit no GitHub"
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                    </a>
                   </div>
-                  
-                  <a
-                    href={commit.html_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300 transition-colors ml-4 flex-shrink-0"
-                    title="Ver commit no GitHub"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Timeline ending indicator */}
-        <div className="relative flex items-center justify-center mt-6">
+        <div className="relative flex items-center justify-center mt-8">
           <div className="w-12 h-12 bg-slate-700 rounded-full border-4 border-slate-800 flex items-center justify-center">
             <Activity className="w-5 h-5 text-slate-400" />
           </div>
         </div>
       </div>
 
-      {/* Timeline summary */}
-      <div className="mt-6 p-4 bg-slate-700/20 rounded-lg border border-slate-600">
+      {/* Timeline Summary */}
+      <div className="bg-slate-700/20 rounded-lg p-4 border border-slate-600/50">
         <div className="flex items-center justify-between text-sm">
           <span className="text-slate-400">
-            Timeline mostrando os {commits.length} commits mais recentes
+            Timeline exibindo os {commits.length} commits mais recentes
           </span>
           <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1 text-green-400">
-              <div className="w-2 h-2 bg-green-500 rounded-full" />
-              Features
-            </span>
-            <span className="flex items-center gap-1 text-red-400">
-              <div className="w-2 h-2 bg-red-500 rounded-full" />
-              Fixes
-            </span>
-            <span className="flex items-center gap-1 text-blue-400">
-              <div className="w-2 h-2 bg-blue-500 rounded-full" />
-              Docs
-            </span>
-            <span className="flex items-center gap-1 text-slate-400">
-              <div className="w-2 h-2 bg-slate-500 rounded-full" />
-              Outros
+            <span className="text-slate-500">
+              De {commits.length > 0 ? formatDate(commits[commits.length - 1].commit.author.date) : ''} 
+              até {commits.length > 0 ? formatDate(commits[0].commit.author.date) : ''}
             </span>
           </div>
         </div>
