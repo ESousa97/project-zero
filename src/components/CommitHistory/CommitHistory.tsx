@@ -225,13 +225,13 @@ const CommitHistory: React.FC = () => {
         {statsForDisplay.total > 0 && (
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
-              <h4 className="text-slate-300 font-medium mb-2">📊 Debug Info</h4>
+              <h4 className="text-slate-300 font-medium mb-2">Debug Info</h4>
               <div className="text-xs text-slate-400 space-y-1">
-                <div>✅ Fonte: {statsForDisplay.source}</div>
-                <div>📦 Total coletado: {statsForDisplay.total}</div>
-                <div>🔍 Filtrados: {statsForDisplay.filtered}</div>
-                <div>📋 Exibidos: {statsForDisplay.displayed}</div>
-                <div>📊 Analytics: {statsForDisplay.analytics}</div>
+                <div>Fonte: {statsForDisplay.source}</div>
+                <div>Total coletado: {statsForDisplay.total}</div>
+                <div>Filtrados: {statsForDisplay.filtered}</div>
+                <div>Exibidos: {statsForDisplay.displayed}</div>
+                <div>Analytics: {statsForDisplay.analytics}</div>
               </div>
             </div>
 
@@ -269,9 +269,9 @@ const CommitHistory: React.FC = () => {
                   Coleta de <strong>TODOS os {repositories.length} repositórios</strong> via API real.
                 </p>
                 <div className="mt-2 text-xs text-slate-400">
-                  <p>🔄 <strong>Metodologia:</strong> Igual ao Dashboard (que funciona)</p>
-                  <p>⚡ <strong>Dados:</strong> 100% reais da API GitHub</p>
-                  <p>🎯 <strong>Objetivo:</strong> Máxima cobertura histórica</p>
+                  <p><strong>Metodologia:</strong> Igual ao Dashboard (que funciona)</p>
+                  <p><strong>Dados:</strong> 100% reais da API GitHub</p>
+                  <p><strong>Objetivo:</strong> Máxima cobertura histórica</p>
                 </div>
                 {allReposCommits.length > 0 && (
                   <div className="mt-3 space-y-1">
@@ -416,7 +416,7 @@ const CommitHistory: React.FC = () => {
 
           {/* Info Helper */}
           <div className="mt-4 p-3 bg-slate-700/20 rounded-lg">
-            <h4 className="text-xs font-medium text-slate-300 mb-2">💡 Filtros Avançados</h4>
+            <h4 className="text-xs font-medium text-slate-300 mb-2">Filtros Avançados</h4>
             <ul className="text-xs text-slate-400 space-y-1">
               <li>• Filtros de segundos até anos</li>
               <li>• Lista limitada a 10 commits</li>
