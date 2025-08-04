@@ -225,13 +225,13 @@ const CommitHistory: React.FC = () => {
         {statsForDisplay.total > 0 && (
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
-              <h4 className="text-slate-300 font-medium mb-2">Debug Info</h4>
+              <h4 className="text-slate-300 font-medium mb-2">📊 Debug Info</h4>
               <div className="text-xs text-slate-400 space-y-1">
-                <div>Fonte: {statsForDisplay.source}</div>
-                <div>Total coletado: {statsForDisplay.total}</div>
-                <div>Filtrados: {statsForDisplay.filtered}</div>
-                <div>Exibidos: {statsForDisplay.displayed}</div>
-                <div>Analytics: {statsForDisplay.analytics}</div>
+                <div>✅ Fonte: {statsForDisplay.source}</div>
+                <div>📦 Total coletado: {statsForDisplay.total}</div>
+                <div>🔍 Filtrados: {statsForDisplay.filtered}</div>
+                <div>📋 Exibidos: {statsForDisplay.displayed}</div>
+                <div>📊 Analytics: {statsForDisplay.analytics}</div>
               </div>
             </div>
 
@@ -416,7 +416,7 @@ const CommitHistory: React.FC = () => {
 
           {/* Info Helper */}
           <div className="mt-4 p-3 bg-slate-700/20 rounded-lg">
-            <h4 className="text-xs font-medium text-slate-300 mb-2">Filtros Avançados</h4>
+            <h4 className="text-xs font-medium text-slate-300 mb-2">💡 Filtros Avançados</h4>
             <ul className="text-xs text-slate-400 space-y-1">
               <li>• Filtros de segundos até anos</li>
               <li>• Lista limitada a 10 commits</li>
