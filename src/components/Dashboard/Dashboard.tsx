@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useGitHub } from '../../context/GitHubContext';
 
 // Componentes modulares
@@ -8,12 +8,12 @@ import LoadingState from './LoadingState';
 import StatsGrid from './StatsGrid';
 import DashboardCharts from './DashboardCharts';
 
-// Hook personalizado
+// Hook personalizado para dados do dashboard
 import { useDashboardData } from './useDashboardData';
 
 const Dashboard: React.FC = () => {
   const { token, user, loading, repositories } = useGitHub();
-  
+
   const {
     currentPeriodData,
     totalStats,
@@ -26,27 +26,23 @@ const Dashboard: React.FC = () => {
     repositoryMetrics,
     selectedMetric,
     setSelectedMetric,
-    hasPerformanceData
+    hasPerformanceData,
   } = useDashboardData();
 
-  // Log para debug
-  useEffect(() => {
-    console.log(`📊 Dashboard renderizado - Commits: ${currentPeriodData.commits}, Período: ${timeRange}`);
-  }, [currentPeriodData.commits, timeRange]);
-
-  // Renderiza modal de token se necessário
+  // Exibe modal para solicitar token caso não tenha
   if (!token) {
     return <TokenModalWrapper token={token} user={user} />;
   }
 
-  // Renderiza loading se necessário
-  if (loading && !repositories.length) {
+  // Exibe loading enquanto carrega dados iniciais e não há repositórios
+  if (loading && repositories.length === 0) {
     return <LoadingState loading={loading} hasRepositories={repositories.length > 0} />;
   }
 
+  // Renderização principal do Dashboard
   return (
     <div className="space-y-6">
-      {/* Cabeçalho do Dashboard */}
+      {/* Cabeçalho do Dashboard com seleção de período e refresh */}
       <DashboardHeader
         timeRange={timeRange}
         onTimeRangeChange={setTimeRange}
@@ -56,14 +52,14 @@ const Dashboard: React.FC = () => {
         activeRepos={currentPeriodData.activeRepos}
       />
 
-      {/* Grid de Estatísticas */}
+      {/* Grid com principais estatísticas do período */}
       <StatsGrid
         currentPeriodData={currentPeriodData}
         totalStats={totalStats}
         timeRange={timeRange}
       />
 
-      {/* Gráficos e Métricas */}
+      {/* Gráficos e métricas detalhadas */}
       <DashboardCharts
         timeSeriesData={timeSeriesData}
         languageData={languageData}

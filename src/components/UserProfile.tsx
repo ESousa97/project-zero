@@ -11,7 +11,6 @@ import {
 } from 'recharts';
 import { useGitHub } from '../context/GitHubContext';
 
-// Interface para contribuição por linguagem, incluindo número de repositórios, stars, commits e porcentagem
 interface LanguageContribution {
   language: string;
   repos: number;
@@ -21,7 +20,6 @@ interface LanguageContribution {
   color: string;
 }
 
-// Interface para badges de conquistas, com título, descrição, ícone, cor, status de ganho e progresso
 interface AchievementBadge {
   id: string;
   title: string;
@@ -36,19 +34,16 @@ interface AchievementBadge {
 const UserProfile: React.FC = () => {
   const { user, repositories, commits, loading, fetchUser } = useGitHub();
 
-  // Memoizar fetchUser para usar no useEffect
   const memoizedFetchUser = useCallback(() => {
     fetchUser();
   }, [fetchUser]);
 
-  // Otimizar useEffect - apenas executar quando necessário
   useEffect(() => {
     if (!user && !loading) {
       memoizedFetchUser();
     }
   }, [user, loading, memoizedFetchUser]);
 
-  // Memoizar cálculos avançados com dependências específicas
   const advancedStats = useMemo(() => {
     if (!repositories.length) return null;
 
@@ -111,9 +106,8 @@ const UserProfile: React.FC = () => {
       contributionsThisYear: commits.length || 156,
       avgCommitsPerDay: ((commits.length || 156) / 365).toFixed(1),
     };
-  }, [repositories, user?.followers, user?.created_at, commits.length]); // Dependências específicas
+  }, [repositories, user?.followers, user?.created_at, commits.length]);
 
-  // Memoizar contribuições por linguagem
   const languageContributions: LanguageContribution[] = useMemo(() => {
     if (!repositories.length) return [];
     
@@ -146,7 +140,6 @@ const UserProfile: React.FC = () => {
       .slice(0, 8);
   }, [repositories]);
 
-  // Memoizar dados de atividade
   const activityData = useMemo(() => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const currentYear = new Date().getFullYear();
@@ -169,7 +162,6 @@ const UserProfile: React.FC = () => {
     });
   }, [repositories]);
 
-  // Memoizar achievements
   const achievements: AchievementBadge[] = useMemo(() => {
     if (!advancedStats) return [];
 
@@ -253,7 +245,6 @@ const UserProfile: React.FC = () => {
     ];
   }, [advancedStats, user?.followers]);
 
-  // Renderiza tela de loading enquanto dados não estão carregados
   if (loading && !user) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -265,7 +256,6 @@ const UserProfile: React.FC = () => {
     );
   }
 
-  // Mensagem de erro caso usuário não esteja disponível após tentativa de carregamento
   if (!user) {
     return (
       <div className="text-center py-12">
@@ -276,10 +266,8 @@ const UserProfile: React.FC = () => {
     );
   }
 
-  // Renderização principal do componente com todos os dados e gráficos
   return (
     <div className="space-y-6">
-      {/* Cabeçalho do perfil */}
       <div>
         <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
           <Users className="w-10 h-10 text-purple-500" />
@@ -288,9 +276,7 @@ const UserProfile: React.FC = () => {
         <p className="text-slate-400">Análise completa da sua presença e atividade no GitHub</p>
       </div>
 
-      {/* Cartão principal com avatar, score e dados do usuário */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 overflow-hidden">
-        {/* Capa colorida com Developer Score */}
         <div className="h-40 bg-gradient-to-r from-blue-600 via-purple-700 to-pink-600 relative">
           <div className="absolute inset-0 bg-black/20"></div>
           {advancedStats && (
@@ -309,10 +295,8 @@ const UserProfile: React.FC = () => {
           )}
         </div>
         
-        {/* Conteúdo do cartão */}
         <div className="px-8 pb-8">
           <div className="flex flex-col lg:flex-row items-start lg:items-end gap-6 -mt-20">
-            {/* Avatar do usuário */}
             <div className="relative">
               <img
                 src={user.avatar_url}
@@ -324,7 +308,6 @@ const UserProfile: React.FC = () => {
               </div>
             </div>
 
-            {/* Informações principais do usuário */}
             <div className="flex-1">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
@@ -338,7 +321,6 @@ const UserProfile: React.FC = () => {
                   )}
                 </div>
                 
-                {/* Botões para GitHub e site pessoal */}
                 <div className="flex gap-3">
                   <a
                     href={`https://github.com/${user.login}`}
@@ -364,7 +346,6 @@ const UserProfile: React.FC = () => {
                 </div>
               </div>
 
-              {/* Dados complementares como empresa, localização, email e data de criação */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
                 {user.company && (
                   <div className="flex items-center gap-2 text-slate-300">
@@ -396,7 +377,6 @@ const UserProfile: React.FC = () => {
                 </div>
               </div>
 
-              {/* Estatísticas rápidas como streak, commits por dia, ativos e linguagens */}
               {advancedStats && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                   <div className="bg-slate-700/30 rounded-lg p-3 text-center">
@@ -437,9 +417,7 @@ const UserProfile: React.FC = () => {
         </div>
       </div>
 
-      {/* Grade de estatísticas avançadas com ícones e valores */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {/* Total de Stars */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-yellow-500/50 transition-all duration-300 group">
           <Star className="w-8 h-8 text-yellow-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
           <div className="text-2xl font-bold text-white">{advancedStats?.totalStars || 0}</div>
@@ -449,7 +427,6 @@ const UserProfile: React.FC = () => {
           )}
         </div>
 
-        {/* Seguidores */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-green-500/50 transition-all duration-300 group">
           <Users className="w-8 h-8 text-green-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
           <div className="text-2xl font-bold text-white">{user.followers}</div>
@@ -457,7 +434,6 @@ const UserProfile: React.FC = () => {
           <div className="text-xs text-green-400 mt-1">{user.following} seguindo</div>
         </div>
 
-        {/* Total de Forks */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-purple-500/50 transition-all duration-300 group">
           <GitCommit className="w-8 h-8 text-purple-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
           <div className="text-2xl font-bold text-white">{advancedStats?.totalForks || 0}</div>
@@ -467,7 +443,6 @@ const UserProfile: React.FC = () => {
           )}
         </div>
 
-        {/* Gists Públicos */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-orange-500/50 transition-all duration-300 group">
           <BookOpen className="w-8 h-8 text-orange-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
           <div className="text-2xl font-bold text-white">{user.public_gists}</div>
@@ -477,7 +452,6 @@ const UserProfile: React.FC = () => {
           )}
         </div>
 
-        {/* Linguagens */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 text-center hover:border-cyan-500/50 transition-all duration-300 group">
           <Code className="w-8 h-8 text-cyan-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
           <div className="text-2xl font-bold text-white">{advancedStats?.languages || 0}</div>
@@ -488,7 +462,6 @@ const UserProfile: React.FC = () => {
         </div>
       </div>
 
-      {/* Seção de conquistas e badges */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
           <Trophy className="w-5 h-5 mr-2 text-yellow-400" />
@@ -512,7 +485,6 @@ const UserProfile: React.FC = () => {
                   <h4 className="font-semibold text-white text-sm mb-1">{achievement.title}</h4>
                   <p className="text-xs text-slate-400 mb-2">{achievement.description}</p>
                   
-                  {/* Barra de progresso para conquistas parciais */}
                   {achievement.requirement && (
                     <div className="w-full bg-slate-600 rounded-full h-1.5 mb-2">
                       <div 
@@ -526,7 +498,6 @@ const UserProfile: React.FC = () => {
                     </div>
                   )}
                   
-                  {/* Exibição do progresso em números */}
                   {achievement.progress !== undefined && achievement.requirement && (
                     <p className="text-xs text-slate-500">
                       {achievement.progress}/{achievement.requirement}
@@ -534,7 +505,6 @@ const UserProfile: React.FC = () => {
                   )}
                 </div>
                 
-                {/* Checkmark para conquistas alcançadas */}
                 {achievement.earned && (
                   <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                     <span className="text-white text-xs">✓</span>
@@ -546,9 +516,7 @@ const UserProfile: React.FC = () => {
         </div>
       </div>
 
-      {/* Grade de analytics com gráficos diversos */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Contribuições por Linguagem (PieChart) */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
             <Code className="w-5 h-5 mr-2 text-blue-400" />
@@ -576,7 +544,6 @@ const UserProfile: React.FC = () => {
               </RechartsPieChart>
             </ResponsiveContainer>
             
-            {/* Lista de linguagens com detalhes */}
             <div className="space-y-3 max-h-48 overflow-y-auto">
               {languageContributions.map((lang) => (
                 <div key={lang.language} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
@@ -600,7 +567,6 @@ const UserProfile: React.FC = () => {
           </div>
         </div>
 
-        {/* Atividade ao longo do ano (AreaChart) */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
             <Activity className="w-5 h-5 mr-2 text-green-400" />
@@ -625,7 +591,6 @@ const UserProfile: React.FC = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Performance dos repositórios (ScatterChart) */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
             <Target className="w-5 h-5 mr-2 text-orange-400" />
@@ -664,9 +629,9 @@ const UserProfile: React.FC = () => {
                       <div className="bg-slate-800 p-4 rounded-lg border border-slate-600 shadow-lg">
                         <p className="text-white font-semibold">{data.name}</p>
                         <p className="text-yellow-400">★ {data.stars} stars</p>
-                        <p className="text-green-400">🍴 {data.forks} forks</p>
-                        <p className="text-blue-400">📦 {data.size.toFixed(1)} MB</p>
-                        <p className="text-purple-400">📅 {data.age} dias</p>
+                        <p className="text-green-400">Forks: {data.forks}</p>
+                        <p className="text-blue-400">Tamanho: {data.size.toFixed(1)} MB</p>
+                        <p className="text-purple-400">Dias: {data.age}</p>
                       </div>
                     );
                   }

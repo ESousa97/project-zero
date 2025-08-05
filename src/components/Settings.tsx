@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useGitHub } from '../context/GitHubContext';
 
+// Interface para o objeto de configurações salvas
 interface SettingsData {
   darkMode: boolean;
   notifications: boolean;
@@ -28,10 +29,10 @@ interface SettingsData {
 }
 
 const Settings: React.FC = () => {
-  // Contexto do GitHub: token, função para atualizar token e limpar erros
+  // Contexto GitHub para manipular token e erros
   const { token, setToken, clearError } = useGitHub();
 
-  // Estados locais para configurações da UI
+  // Estados locais para configurações e UI
   const [newToken, setNewToken] = useState(token);
   const [showToken, setShowToken] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
@@ -40,7 +41,7 @@ const Settings: React.FC = () => {
   const [refreshInterval, setRefreshInterval] = useState(5);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
-  // Carrega configurações salvas ao montar o componente
+  // Carregar configurações salvas do localStorage no carregamento do componente
   useEffect(() => {
     const savedSettings = localStorage.getItem('app_settings');
     if (savedSettings) {
@@ -56,7 +57,7 @@ const Settings: React.FC = () => {
     }
   }, []);
 
-  // Debounce para salvar configurações - evitar writes excessivos
+  // Salvar configurações no localStorage com debounce de 1 segundo para evitar gravações excessivas
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       const settings: SettingsData = {
@@ -66,22 +67,22 @@ const Settings: React.FC = () => {
         refreshInterval,
       };
       localStorage.setItem('app_settings', JSON.stringify(settings));
-    }, 1000); // Debounce de 1 segundo
+    }, 1000);
 
     return () => clearTimeout(timeoutId);
   }, [darkMode, notifications, autoRefresh, refreshInterval]);
 
-  // Atualiza token no contexto e limpa erros
+  // Atualiza o token no contexto e limpa erros
   const handleTokenUpdate = () => {
     if (!newToken.trim()) {
       setSaveStatus('error');
       return;
     }
-    
+
     setSaveStatus('saving');
     setToken(newToken);
     clearError();
-    
+
     setTimeout(() => {
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
@@ -103,7 +104,7 @@ const Settings: React.FC = () => {
     }
   };
 
-  // Exporta configurações atuais para arquivo JSON
+  // Exporta as configurações atuais para um arquivo JSON
   const exportSettings = () => {
     const settings: SettingsData = {
       darkMode,
@@ -125,7 +126,7 @@ const Settings: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Importa configurações de arquivo JSON e atualiza estados
+  // Importa configurações de arquivo JSON e atualiza os estados correspondentes
   const importSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -147,11 +148,12 @@ const Settings: React.FC = () => {
       }
     };
     reader.readAsText(file);
-    // Reset do input para permitir reimportar o mesmo arquivo
+
+    // Resetar o input para permitir reimportar o mesmo arquivo se necessário
     event.target.value = '';
   };
 
-  // Limpa todo cache e recarrega a página após confirmação
+  // Limpa o cache local após confirmação do usuário e recarrega a página
   const clearCache = () => {
     if (
       confirm(
@@ -163,6 +165,7 @@ const Settings: React.FC = () => {
     }
   };
 
+  // Retorna o ícone correspondente ao status do salvamento
   const getSaveStatusIcon = () => {
     switch (saveStatus) {
       case 'saving':
@@ -178,7 +181,7 @@ const Settings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Título e descrição da página */}
+      {/* Título e descrição */}
       <header>
         <h1 className="text-3xl font-bold text-white mb-2">Configurações</h1>
         <p className="text-slate-400">
@@ -186,8 +189,8 @@ const Settings: React.FC = () => {
         </p>
       </header>
 
-      {/* Configuração do Token GitHub */}
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
+      {/* Seção Token do GitHub */}
+      <section className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <div className="flex items-center gap-3 mb-6">
           <Key className="w-6 h-6 text-blue-400" />
           <h2 className="text-xl font-semibold text-white">Token do GitHub</h2>
@@ -211,6 +214,7 @@ const Settings: React.FC = () => {
                 type="button"
                 onClick={() => setShowToken(!showToken)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white transition-colors duration-200"
+                aria-label={showToken ? 'Ocultar token' : 'Mostrar token'}
               >
                 {showToken ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -226,7 +230,7 @@ const Settings: React.FC = () => {
               {getSaveStatusIcon()}
               {saveStatus === 'saving' ? 'Salvando...' : 'Salvar Token'}
             </button>
-            
+
             {token && (
               <button
                 onClick={handleTokenRevoke}
@@ -238,25 +242,23 @@ const Settings: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Preferências da Interface */}
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
+      <section className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <div className="flex items-center gap-3 mb-6">
           <SettingsIcon className="w-6 h-6 text-purple-400" />
           <h2 className="text-xl font-semibold text-white">Preferências da Interface</h2>
         </div>
 
         <div className="space-y-6">
-          {/* Dark Mode */}
+          {/* Dark Mode Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {darkMode ? <Moon className="w-5 h-5 text-slate-400" /> : <Sun className="w-5 h-5 text-yellow-400" />}
               <div>
                 <h3 className="font-medium text-white">Modo Escuro</h3>
-                <p className="text-sm text-slate-400">
-                  Alterna entre tema claro e escuro
-                </p>
+                <p className="text-sm text-slate-400">Alterna entre tema claro e escuro</p>
               </div>
             </div>
             <button
@@ -264,6 +266,8 @@ const Settings: React.FC = () => {
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
                 darkMode ? 'bg-blue-600' : 'bg-slate-600'
               }`}
+              aria-pressed={darkMode}
+              aria-label="Alternar modo escuro"
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
@@ -273,15 +277,13 @@ const Settings: React.FC = () => {
             </button>
           </div>
 
-          {/* Notifications */}
+          {/* Notifications Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {notifications ? <Bell className="w-5 h-5 text-blue-400" /> : <BellOff className="w-5 h-5 text-slate-400" />}
               <div>
                 <h3 className="font-medium text-white">Notificações</h3>
-                <p className="text-sm text-slate-400">
-                  Receber notificações sobre atualizações
-                </p>
+                <p className="text-sm text-slate-400">Receber notificações sobre atualizações</p>
               </div>
             </div>
             <button
@@ -289,6 +291,8 @@ const Settings: React.FC = () => {
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
                 notifications ? 'bg-blue-600' : 'bg-slate-600'
               }`}
+              aria-pressed={notifications}
+              aria-label="Alternar notificações"
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
@@ -298,15 +302,13 @@ const Settings: React.FC = () => {
             </button>
           </div>
 
-          {/* Auto Refresh */}
+          {/* Auto Refresh Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <RefreshCw className={`w-5 h-5 ${autoRefresh ? 'text-green-400' : 'text-slate-400'}`} />
               <div>
                 <h3 className="font-medium text-white">Atualização Automática</h3>
-                <p className="text-sm text-slate-400">
-                  Atualizar dados automaticamente
-                </p>
+                <p className="text-sm text-slate-400">Atualizar dados automaticamente</p>
               </div>
             </div>
             <button
@@ -314,6 +316,8 @@ const Settings: React.FC = () => {
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
                 autoRefresh ? 'bg-blue-600' : 'bg-slate-600'
               }`}
+              aria-pressed={autoRefresh}
+              aria-label="Alternar atualização automática"
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
@@ -323,10 +327,13 @@ const Settings: React.FC = () => {
             </button>
           </div>
 
-          {/* Refresh Interval */}
+          {/* Intervalo de Atualização */}
           {autoRefresh && (
             <div className="ml-8">
-              <label htmlFor="refresh-interval" className="block text-sm font-medium text-slate-300 mb-2">
+              <label
+                htmlFor="refresh-interval"
+                className="block text-sm font-medium text-slate-300 mb-2"
+              >
                 Intervalo de Atualização (minutos)
               </label>
               <select
@@ -334,6 +341,7 @@ const Settings: React.FC = () => {
                 value={refreshInterval}
                 onChange={(e) => setRefreshInterval(Number(e.target.value))}
                 className="px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                aria-label="Selecionar intervalo de atualização"
               >
                 <option value={1}>1 minuto</option>
                 <option value={5}>5 minutos</option>
@@ -344,17 +352,17 @@ const Settings: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
+      </section>
 
       {/* Gerenciamento de Dados */}
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
+      <section className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <div className="flex items-center gap-3 mb-6">
           <Shield className="w-6 h-6 text-green-400" />
           <h2 className="text-xl font-semibold text-white">Gerenciamento de Dados</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Export Settings */}
+          {/* Botão Exportar Configurações */}
           <button
             onClick={exportSettings}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200"
@@ -363,8 +371,10 @@ const Settings: React.FC = () => {
             Exportar Configurações
           </button>
 
-          {/* Import Settings */}
-          <label className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 cursor-pointer">
+          {/* Botão Importar Configurações */}
+          <label
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 cursor-pointer"
+          >
             <Upload className="w-4 h-4" />
             Importar Configurações
             <input
@@ -372,10 +382,11 @@ const Settings: React.FC = () => {
               accept=".json"
               onChange={importSettings}
               className="hidden"
+              aria-label="Importar configurações a partir de arquivo JSON"
             />
           </label>
 
-          {/* Clear Cache */}
+          {/* Botão Limpar Cache */}
           <button
             onClick={clearCache}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200"
@@ -385,25 +396,36 @@ const Settings: React.FC = () => {
           </button>
         </div>
 
+        {/* Informação de privacidade */}
         <div className="mt-4 p-4 bg-slate-700/30 border border-slate-600 rounded-lg">
-          <h4 className="font-semibold text-slate-300 mb-2">🔒 Privacidade e Segurança</h4>
+          <h4 className="font-semibold text-slate-300 mb-2">Privacidade e Segurança</h4>
           <p className="text-sm text-slate-400">
             Todas as configurações são armazenadas localmente no seu navegador.
             Seus dados nunca são enviados para servidores externos.
           </p>
         </div>
-      </div>
+      </section>
 
-      {/* Status das Configurações */}
+      {/* Status da operação de salvar */}
       {saveStatus !== 'idle' && (
-        <div className={`bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border ${
-          saveStatus === 'saved' ? 'border-green-500/30' : 
-          saveStatus === 'error' ? 'border-red-500/30' : 'border-blue-500/30'
-        }`}>
-          <div className={`flex items-center gap-2 ${
-            saveStatus === 'saved' ? 'text-green-400' : 
-            saveStatus === 'error' ? 'text-red-400' : 'text-blue-400'
-          }`}>
+        <div
+          className={`bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border ${
+            saveStatus === 'saved'
+              ? 'border-green-500/30'
+              : saveStatus === 'error'
+              ? 'border-red-500/30'
+              : 'border-blue-500/30'
+          }`}
+        >
+          <div
+            className={`flex items-center gap-2 ${
+              saveStatus === 'saved'
+                ? 'text-green-400'
+                : saveStatus === 'error'
+                ? 'text-red-400'
+                : 'text-blue-400'
+            }`}
+          >
             {getSaveStatusIcon()}
             <span className="font-medium">
               {saveStatus === 'saving' && 'Salvando configurações...'}

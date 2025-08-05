@@ -3,7 +3,8 @@ import React from 'react';
 import {
   User, Calendar, Clock, Hash, Plus, Minus, ExternalLink,
   GitCommit, MessageSquare, FileText, Code, TrendingUp,
-  Tag, Globe
+  Tag, Globe, Sparkles, Bug, BookOpen, Paintbrush,
+  RefreshCw, TestTube, Settings
 } from 'lucide-react';
 import type { ExtendedCommit, CommitType } from './types';
 
@@ -40,19 +41,20 @@ const CommitCard: React.FC<CommitCardProps> = ({ commit, showRepository = false 
 
   const getCommitTypeConfig = (type: CommitType | undefined) => {
     const configs = {
-      feat: { bg: 'bg-green-500', label: 'FEAT', icon: '✨' },
-      fix: { bg: 'bg-red-500', label: 'FIX', icon: '🐛' },
-      docs: { bg: 'bg-blue-500', label: 'DOCS', icon: '📚' },
-      style: { bg: 'bg-purple-500', label: 'STYLE', icon: '💄' },
-      refactor: { bg: 'bg-yellow-500', label: 'REFACTOR', icon: '♻️' },
-      test: { bg: 'bg-orange-500', label: 'TEST', icon: '🧪' },
-      chore: { bg: 'bg-gray-500', label: 'CHORE', icon: '🔧' },
-      other: { bg: 'bg-slate-500', label: 'OTHER', icon: '📝' }
+      feat: { bg: 'bg-green-500', label: 'FEAT', icon: Sparkles },
+      fix: { bg: 'bg-red-500', label: 'FIX', icon: Bug },
+      docs: { bg: 'bg-blue-500', label: 'DOCS', icon: BookOpen },
+      style: { bg: 'bg-purple-500', label: 'STYLE', icon: Paintbrush },
+      refactor: { bg: 'bg-yellow-500', label: 'REFACTOR', icon: RefreshCw },
+      test: { bg: 'bg-orange-500', label: 'TEST', icon: TestTube },
+      chore: { bg: 'bg-gray-500', label: 'CHORE', icon: Settings },
+      other: { bg: 'bg-slate-500', label: 'OTHER', icon: FileText }
     };
     return configs[type || 'other'];
   };
 
   const typeConfig = getCommitTypeConfig(commit.commitType);
+  const TypeIcon = typeConfig.icon;
 
   return (
     <div className="group bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-xl hover:border-blue-400/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 overflow-hidden">
@@ -81,7 +83,7 @@ const CommitCard: React.FC<CommitCardProps> = ({ commit, showRepository = false 
                 {/* Badges */}
                 <div className="flex items-center gap-2 mb-2">
                   <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium text-white ${typeConfig.bg}`}>
-                    <span>{typeConfig.icon}</span>
+                    <TypeIcon className="w-3 h-3" />
                     {typeConfig.label}
                   </span>
                   

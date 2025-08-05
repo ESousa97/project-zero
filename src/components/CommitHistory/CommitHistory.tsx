@@ -1,6 +1,6 @@
 // src/components/CommitHistory/CommitHistory.tsx - ATUALIZADO
 import React, { useMemo } from 'react';
-import { GitCommit, BarChart3, List, Clock, GitBranch, RefreshCw, RotateCcw, AlertCircle, CheckCircle, Activity } from 'lucide-react';
+import { GitCommit, BarChart3, List, Clock, GitBranch, RefreshCw, RotateCcw, AlertCircle, CheckCircle, Activity, Database, Search } from 'lucide-react';
 import { useGitHub } from '../../context/GitHubContext';
 
 // Componentes modulares
@@ -152,7 +152,10 @@ const CommitHistory: React.FC = () => {
                         <span className="text-xs font-medium">API GitHub Real</span>
                       </div>
                       <div className="mt-1">
-                        <span className="text-xs text-green-300">✅ Fonte: {statsForDisplay.source}</span>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3 text-green-300" />
+                          <span className="text-xs text-green-300">Fonte: {statsForDisplay.source}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="p-2 bg-gradient-to-r from-green-500 to-green-600 rounded-lg">
@@ -225,18 +228,27 @@ const CommitHistory: React.FC = () => {
         {statsForDisplay.total > 0 && (
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
-              <h4 className="text-slate-300 font-medium mb-2">📊 Debug Info</h4>
+              <h4 className="text-slate-300 font-medium mb-2 flex items-center gap-2">
+                <Database className="w-4 h-4" />
+                Debug Info
+              </h4>
               <div className="text-xs text-slate-400 space-y-1">
-                <div>✅ Fonte: {statsForDisplay.source}</div>
-                <div>📦 Total coletado: {statsForDisplay.total}</div>
-                <div>🔍 Filtrados: {statsForDisplay.filtered}</div>
-                <div>📋 Exibidos: {statsForDisplay.displayed}</div>
-                <div>📊 Analytics: {statsForDisplay.analytics}</div>
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  <span>Fonte: {statsForDisplay.source}</span>
+                </div>
+                <div>Total coletado: {statsForDisplay.total}</div>
+                <div>Filtrados: {statsForDisplay.filtered}</div>
+                <div>Exibidos: {statsForDisplay.displayed}</div>
+                <div>Analytics: {statsForDisplay.analytics}</div>
               </div>
             </div>
 
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
-              <h4 className="text-slate-300 font-medium mb-2">🔄 Status da Busca</h4>
+              <h4 className="text-slate-300 font-medium mb-2 flex items-center gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Status da Busca
+              </h4>
               <div className="text-xs text-slate-400 space-y-1">
                 <div>Repositórios: {repositories.length}</div>
                 <div>Selecionado: {filters.selectedRepo || 'Nenhum'}</div>
@@ -246,7 +258,10 @@ const CommitHistory: React.FC = () => {
             </div>
 
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
-              <h4 className="text-slate-300 font-medium mb-2">⚡ Performance</h4>
+              <h4 className="text-slate-300 font-medium mb-2 flex items-center gap-2">
+                <Activity className="w-4 h-4" />
+                Performance
+              </h4>
               <div className="text-xs text-slate-400 space-y-1">
                 <div>Filtros ativos: {isFiltered ? 'Sim' : 'Não'}</div>
                 <div>Modo visualização: {viewMode}</div>
@@ -416,7 +431,10 @@ const CommitHistory: React.FC = () => {
 
           {/* Info Helper */}
           <div className="mt-4 p-3 bg-slate-700/20 rounded-lg">
-            <h4 className="text-xs font-medium text-slate-300 mb-2">💡 Filtros Avançados</h4>
+            <h4 className="text-xs font-medium text-slate-300 mb-2 flex items-center gap-1">
+              <Activity className="w-3 h-3" />
+              Filtros Avançados
+            </h4>
             <ul className="text-xs text-slate-400 space-y-1">
               <li>• Filtros de segundos até anos</li>
               <li>• Lista limitada a 10 commits</li>
@@ -431,7 +449,7 @@ const CommitHistory: React.FC = () => {
       {currentCommits.length > 0 && (
         <div className="bg-green-600/10 border border-green-500/20 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <div className="text-green-400 mt-0.5">📊</div>
+            <BarChart3 className="w-5 h-5 text-green-400 mt-0.5" />
             <div>
               <h4 className="text-green-400 font-medium mb-1">Coleta Completa Realizada</h4>
               <p className="text-green-300/80 text-sm">
@@ -439,11 +457,13 @@ const CommitHistory: React.FC = () => {
                 Todos os filtros são aplicados sobre este conjunto total para máxima precisão.
               </p>
               <div className="mt-2 grid grid-cols-2 gap-4 text-xs">
-                <div>
-                  <span className="text-green-300">📋 Lista:</span> Top 10 commits mais relevantes
+                <div className="flex items-center gap-1">
+                  <List className="w-3 h-3 text-green-300" />
+                  <span className="text-green-300">Lista: Top 10 commits mais relevantes</span>
                 </div>
-                <div>
-                  <span className="text-green-300">📊 Analytics:</span> Todos os {totalFilteredCount} commits filtrados
+                <div className="flex items-center gap-1">
+                  <BarChart3 className="w-3 h-3 text-green-300" />
+                  <span className="text-green-300">Analytics: Todos os {totalFilteredCount} commits filtrados</span>
                 </div>
               </div>
             </div>
@@ -589,18 +609,25 @@ const CommitHistory: React.FC = () => {
               Escolha um repositório para visualizar o histórico detalhado de commits
             </p>
             <div className="bg-slate-700/30 rounded-lg p-6 max-w-md">
-              <h4 className="text-white font-semibold mb-3">Novos recursos:</h4>
+              <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                <Activity className="w-4 h-4" />
+                Novos recursos:
+              </h4>
               <ul className="text-sm text-slate-400 space-y-2">
                 <li className="flex items-start gap-2">
+                  <Clock className="w-3 h-3 mt-1" />
                   Filtros de tempo precisos: segundos até anos
                 </li>
                 <li className="flex items-start gap-2">
+                  <BarChart3 className="w-3 h-3 mt-1" />
                   Analytics completos dos dados filtrados
                 </li>
                 <li className="flex items-start gap-2">
+                  <List className="w-3 h-3 mt-1" />
                   Lista otimizada com 10 commits mais relevantes
                 </li>
                 <li className="flex items-start gap-2">
+                  <Search className="w-3 h-3 mt-1" />
                   Busca avançada por autor, SHA e conteúdo
                 </li>
               </ul>
@@ -613,7 +640,7 @@ const CommitHistory: React.FC = () => {
       {currentCommits.length > 0 && (
         <div className="bg-green-600/10 border border-green-500/20 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <div className="text-green-400 mt-0.5">✅</div>
+            <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
             <div>
               <h4 className="text-green-400 font-medium mb-1">Histórico Completo Coletado</h4>
               <p className="text-green-300/80 text-sm">

@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { X, Github, Eye, EyeOff, ExternalLink, Shield } from 'lucide-react';
+import {
+  X,
+  Github,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Shield,
+} from 'lucide-react';
 import { useGitHub } from '../context/GitHubContext';
 
 interface TokenModalProps {
@@ -9,13 +16,16 @@ interface TokenModalProps {
 
 const TokenModal: React.FC<TokenModalProps> = ({ isOpen, onClose }) => {
   const { setToken } = useGitHub();
+
   const [tokenInput, setTokenInput] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [error, setError] = useState('');
 
+  // Handler do submit do formulário
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Validação simples do token
     if (!tokenInput.trim()) {
       setError('Por favor, insira seu token do GitHub');
       return;
@@ -26,17 +36,19 @@ const TokenModal: React.FC<TokenModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
+    // Atualiza token no contexto e fecha modal
     setToken(tokenInput.trim());
     setError('');
     onClose();
   };
 
+  // Se o modal não estiver aberto, não renderiza nada
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
+        {/* Cabeçalho */}
         <div className="flex items-center justify-between p-6 border-b border-slate-700">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
@@ -47,14 +59,15 @@ const TokenModal: React.FC<TokenModalProps> = ({ isOpen, onClose }) => {
           <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-all duration-200"
+            aria-label="Fechar modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content */}
+        {/* Conteúdo */}
         <div className="p-6 space-y-6">
-          {/* Informação */}
+          {/* Informação sobre o uso do token */}
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
             <div className="flex items-start space-x-3">
               <Shield className="w-5 h-5 text-blue-400 mt-0.5" />
@@ -68,14 +81,15 @@ const TokenModal: React.FC<TokenModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* Instruções */}
+          {/* Instruções para criação do token */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white">Como criar um Personal Access Token:</h3>
             <ol className="list-decimal list-inside space-y-2 text-slate-300">
               <li>Acesse as configurações do GitHub</li>
               <li>Vá para "Developer settings" → "Personal access tokens" → "Tokens (classic)"</li>
               <li>Clique em "Generate new token (classic)"</li>
-              <li>Selecione as seguintes permissões:
+              <li>
+                Selecione as seguintes permissões:
                 <ul className="list-disc list-inside ml-4 mt-1 space-y-1 text-sm">
                   <li><code className="bg-slate-700 px-1 rounded">repo</code> - Acesso total aos repositórios</li>
                   <li><code className="bg-slate-700 px-1 rounded">user</code> - Informações do perfil</li>
@@ -84,7 +98,7 @@ const TokenModal: React.FC<TokenModalProps> = ({ isOpen, onClose }) => {
               </li>
               <li>Copie o token gerado</li>
             </ol>
-            
+
             <a
               href="https://github.com/settings/tokens/new"
               target="_blank"
@@ -96,7 +110,7 @@ const TokenModal: React.FC<TokenModalProps> = ({ isOpen, onClose }) => {
             </a>
           </div>
 
-          {/* Form */}
+          {/* Formulário para inserir token */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="token" className="block text-sm font-medium text-slate-300 mb-2">
@@ -110,17 +124,21 @@ const TokenModal: React.FC<TokenModalProps> = ({ isOpen, onClose }) => {
                   onChange={(e) => setTokenInput(e.target.value)}
                   placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                   className="w-full px-4 py-3 pr-12 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  aria-describedby="token-error"
                 />
                 <button
                   type="button"
                   onClick={() => setShowToken(!showToken)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white transition-colors duration-200"
+                  aria-label={showToken ? 'Ocultar token' : 'Mostrar token'}
                 >
                   {showToken ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
               {error && (
-                <p className="mt-2 text-sm text-red-400">{error}</p>
+                <p id="token-error" className="mt-2 text-sm text-red-400" role="alert">
+                  {error}
+                </p>
               )}
             </div>
 
@@ -141,9 +159,9 @@ const TokenModal: React.FC<TokenModalProps> = ({ isOpen, onClose }) => {
             </div>
           </form>
 
-          {/* Security Note */}
+          {/* Nota de segurança */}
           <div className="bg-slate-700/30 border border-slate-600 rounded-lg p-4">
-            <h4 className="font-semibold text-slate-300 mb-2">🔒 Segurança</h4>
+            <h4 className="font-semibold text-slate-300 mb-2">Segurança</h4>
             <p className="text-sm text-slate-400">
               Seu token é armazenado localmente no navegador e nunca é enviado para nossos servidores.
               Você pode revogar o acesso a qualquer momento nas configurações do GitHub.

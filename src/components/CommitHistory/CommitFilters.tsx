@@ -1,6 +1,6 @@
 // src/components/CommitHistory/CommitFilters.tsx - ATUALIZADO
 import React from 'react';
-import { Search, BarChart3, Filter, RotateCcw, Users, SortAsc, Clock } from 'lucide-react';
+import { Search, BarChart3, Filter, RotateCcw, Users, SortAsc, Clock, Lightbulb } from 'lucide-react';
 import type { CommitFiltersState, TimeFilter } from './types';
 import { getTimeFilterLabel } from './types';
 
@@ -304,7 +304,8 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
               <p className="text-xs text-slate-400">Use os filtros acima para análises precisas por período</p>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span>💡 Dica: Teste filtros de tempo real para commits recentes</span>
+              <Lightbulb className="w-4 h-4" />
+              <span>Dica: Teste filtros de tempo real para commits recentes</span>
             </div>
           </div>
         </div>

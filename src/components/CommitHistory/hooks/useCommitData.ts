@@ -26,15 +26,11 @@ export const useCommitData = () => {
         new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       );
       
-      console.log(`🔄 BUSCA COMPLETA: ${allRepos.length} repositórios`);
-      
       // Processar cada repositório individualmente para melhor controle
       for (let i = 0; i < allRepos.length; i++) {
         const repo = allRepos[i];
         
         try {
-          console.log(`📡 [${i + 1}/${allRepos.length}] ${repo.full_name} - Iniciando busca completa...`);
-          
           let page = 1;
           let hasMoreCommits = true;
           const repoCommits: Commit[] = [];
@@ -56,18 +52,11 @@ export const useCommitData = () => {
                 const pageCommits = await response.json();
                 
                 if (pageCommits.length === 0) {
-                  console.log(`✅ ${repo.name}: Fim encontrado na página ${page}`);
                   hasMoreCommits = false;
                   break;
                 }
                 
                 repoCommits.push(...pageCommits);
-                
-                // Log a cada 25 páginas
-                if (page % 25 === 0) {
-                  console.log(`📄 ${repo.name}: ${repoCommits.length} commits (página ${page})`);
-                }
-                
                 page++;
                 
                 // Rate limiting mínimo
@@ -75,18 +64,15 @@ export const useCommitData = () => {
                 
               } else if (response.status === 403) {
                 // Rate limit - aguardar e tentar novamente
-                console.log(`🚦 Rate limit - aguardando 30s...`);
                 await new Promise(resolve => setTimeout(resolve, 30000));
                 // Não incrementar página, tentar novamente
                 continue;
                 
               } else if (response.status === 404) {
                 // Repositório não encontrado ou sem commits
-                console.log(`⚠️ ${repo.name}: Repositório inacessível ou vazio`);
                 hasMoreCommits = false;
                 
               } else {
-                console.warn(`⚠️ ${repo.name}: Erro ${response.status} na página ${page}`);
                 // Tentar próxima página em caso de erro temporário
                 page++;
                 if (page > 1000) { // Proteção contra loop infinito
@@ -94,8 +80,7 @@ export const useCommitData = () => {
                 }
               }
               
-            } catch (fetchError) {
-              console.error(`❌ ${repo.name}: Erro de rede na página ${page}:`, fetchError);
+            } catch (_fetchError) {
               // Aguardar e tentar novamente
               await new Promise(resolve => setTimeout(resolve, 5000));
               continue;
@@ -113,13 +98,11 @@ export const useCommitData = () => {
           }));
           
           allCommitsFromRepos.push(...commitsWithRepo);
-          console.log(`✅ ${repo.name}: ${repoCommits.length} commits TOTAIS | Global: ${allCommitsFromRepos.length}`);
           
           // Delay entre repositórios
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-        } catch (error) {
-          console.error(`❌ ${repo.name}: Erro geral:`, error);
+        } catch (_error) {
           continue; // Continuar com próximo repositório
         }
       }
@@ -129,11 +112,9 @@ export const useCommitData = () => {
         new Date(b.commit.author.date).getTime() - new Date(a.commit.author.date).getTime()
       );
       
-      console.log(`🎯 BUSCA COMPLETA FINALIZADA: ${allCommitsFromRepos.length} commits de ${allRepos.length} repositórios`);
       setAllReposCommits(allCommitsFromRepos);
       
-    } catch (error) {
-      console.error('❌ Erro geral na busca completa:', error);
+    } catch (_error) {
       setAllReposCommits([]);
     } finally {
       setLoadingAllRepos(false);
@@ -145,18 +126,16 @@ export const useCommitData = () => {
   const currentCommits = useMemo(() => {
     if (commits.length > 0 && allReposCommits.length === 0) {
       // Commits de repositório específico
-      console.log(`📊 Usando commits do contexto: ${commits.length}`);
       return commits;
     }
     
     if (allReposCommits.length > 0) {
       // Commits de todos os repositórios
-      console.log(`📊 Usando TODOS os commits coletados: ${allReposCommits.length} de ${repositories.length} repos`);
       return allReposCommits;
     }
     
     return [];
-  }, [commits, allReposCommits, repositories.length]);
+  }, [commits, allReposCommits]);
 
   return {
     currentCommits,

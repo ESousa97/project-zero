@@ -4,8 +4,6 @@ import type { ExtendedCommit, CommitAnalytics } from '../types';
 
 export const useCommitAnalytics = (commits: ExtendedCommit[]): CommitAnalytics => {
   return useMemo(() => {
-    console.log(`🔍 Processando analytics para ${commits.length} commits filtrados`);
-    
     if (!commits.length) return {
       totalCommits: 0,
       totalAuthors: 0,
@@ -119,8 +117,6 @@ export const useCommitAnalytics = (commits: ExtendedCommit[]): CommitAnalytics =
       timeDistribution,
       dailyActivity
     };
-
-    console.log(`✅ Analytics processado: ${analytics.totalCommits} commits, ${analytics.totalAuthors} autores, período de ${dailyActivity.length} dias`);
     
     return analytics;
   }, [commits]);

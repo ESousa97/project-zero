@@ -1,7 +1,17 @@
 import React from 'react';
 import {
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, ScatterChart, Scatter, Line, LineChart
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  ScatterChart,
+  Scatter,
+  Line,
+  LineChart,
 } from 'recharts';
 import { TrendingUp, Code, Gauge } from 'lucide-react';
 
@@ -49,28 +59,29 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
   repositoryMetrics,
   selectedMetric,
   onMetricChange,
-  hasPerformanceData
+  hasPerformanceData,
 }) => {
   const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'];
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      {/* Linha do tempo - Corrigido */}
+      {/* Linha do tempo */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold text-white flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-green-400" />
+            <TrendingUp className="w-5 h-5 mr-2 text-green-400" aria-hidden="true" />
             Atividade ao Longo do Tempo
           </h3>
           <select
             value={selectedMetric}
             onChange={(e) => onMetricChange(e.target.value as 'commits' | 'stars' | 'forks' | 'issues')}
             className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-1 text-white text-sm"
+            aria-label="Selecionar métrica para o gráfico de atividade"
           >
             <option value="commits">Commits</option>
             <option value="stars">Stars</option>
             <option value="forks">Forks</option>
-            <option value="repositories">Repositórios</option>
+            <option value="issues">Issues</option>
           </select>
         </div>
 
@@ -78,15 +89,15 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
           <ResponsiveContainer width="100%" height={350}>
             <LineChart data={timeSeriesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis 
-                dataKey="date" 
-                stroke="#9CA3AF" 
+              <XAxis
+                dataKey="date"
+                stroke="#9CA3AF"
                 fontSize={12}
                 tick={{ fill: '#9CA3AF' }}
                 axisLine={{ stroke: '#374151' }}
               />
-              <YAxis 
-                stroke="#9CA3AF" 
+              <YAxis
+                stroke="#9CA3AF"
                 fontSize={12}
                 tick={{ fill: '#9CA3AF' }}
                 axisLine={{ stroke: '#374151' }}
@@ -97,7 +108,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                   border: '1px solid #374151',
                   borderRadius: '8px',
                   boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                  color: '#F9FAFB'
+                  color: '#F9FAFB',
                 }}
                 labelStyle={{ color: '#F9FAFB' }}
               />
@@ -115,7 +126,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
         ) : (
           <div className="flex items-center justify-center h-80 text-slate-400">
             <div className="text-center">
-              <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
               <p>Dados insuficientes para gerar o gráfico</p>
               <p className="text-sm mt-1">Carregue alguns repositórios para ver a atividade</p>
             </div>
@@ -126,10 +137,10 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
       {/* Distribuição de linguagens */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-          <Code className="w-5 h-5 mr-2 text-blue-400" />
+          <Code className="w-5 h-5 mr-2 text-blue-400" aria-hidden="true" />
           Distribuição de Linguagens
         </h3>
-        
+
         {languageData && languageData.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ResponsiveContainer width="100%" height={200}>
@@ -149,12 +160,12 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: '#1F2937',
                     border: '1px solid #374151',
                     borderRadius: '8px',
-                    color: '#F9FAFB'
+                    color: '#F9FAFB',
                   }}
                 />
               </PieChart>
@@ -167,6 +178,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                     <div
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      aria-hidden="true"
                     />
                     <span className="text-white text-sm font-medium">{lang.language}</span>
                   </div>
@@ -181,7 +193,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
         ) : (
           <div className="flex items-center justify-center h-48 text-slate-400">
             <div className="text-center">
-              <Code className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <Code className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
               <p>Nenhuma linguagem detectada</p>
               <p className="text-sm mt-1">Carregue repositórios para ver as linguagens utilizadas</p>
             </div>
@@ -193,14 +205,14 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
       {hasPerformanceData && repositoryMetrics && repositoryMetrics.length > 0 ? (
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 xl:col-span-2">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-            <Gauge className="w-5 h-5 mr-2 text-purple-400" />
+            <Gauge className="w-5 h-5 mr-2 text-purple-400" aria-hidden="true" />
             Matriz de Performance dos Repositórios
             <span className="ml-2 text-sm text-slate-400">
-              ({repositoryMetrics.filter(r => r.stars > 0 || r.forks > 0).length} repositórios com atividade)
+              ({repositoryMetrics.filter((r) => r.stars > 0 || r.forks > 0).length} repositórios com atividade)
             </span>
           </h3>
           <ResponsiveContainer width="100%" height={400}>
-            <ScatterChart data={repositoryMetrics.filter(r => r.stars > 0 || r.forks > 0 || r.activity > 20)}>
+            <ScatterChart data={repositoryMetrics.filter((r) => r.stars > 0 || r.forks > 0 || r.activity > 20)}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis
                 type="number"
@@ -226,7 +238,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                   if (active && payload && payload.length) {
                     const data = payload[0].payload;
                     return (
-                      <div className="bg-slate-800 p-4 rounded-lg border border-slate-600 shadow-lg">
+                      <div className="bg-slate-800 p-4 rounded-lg border border-slate-600 shadow-lg text-sm">
                         <p className="text-white font-semibold">{data.name}</p>
                         <p className="text-blue-400">★ {data.stars} stars</p>
                         <p className="text-green-400">🍴 {data.forks} forks</p>
@@ -239,20 +251,18 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                   return null;
                 }}
               />
-              <Scatter 
-                dataKey="activity" 
-                fill="#8B5CF6"
-                r={6}
-              />
+              <Scatter dataKey="activity" fill="#8B5CF6" r={6} />
             </ScatterChart>
           </ResponsiveContainer>
           <div className="mt-4 text-sm text-slate-400">
-            <p><strong>Dica:</strong> Cada ponto representa um repositório. O tamanho indica a atividade (última atualização).</p>
+            <p>
+              <strong>Dica:</strong> Cada ponto representa um repositório. O tamanho indica a atividade (última atualização).
+            </p>
           </div>
         </div>
       ) : (
         <div className="bg-slate-800/50 p-6 rounded-xl text-center text-slate-400 border border-slate-700 xl:col-span-2">
-          <Gauge className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <Gauge className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
           <p>Dados insuficientes para matriz de performance</p>
           <p className="text-sm mt-1">Carregue repositórios com stars e forks para visualizar a performance</p>
         </div>

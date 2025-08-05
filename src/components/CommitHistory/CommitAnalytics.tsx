@@ -143,8 +143,14 @@ const CommitAnalytics: React.FC<CommitAnalyticsProps> = ({ analytics }) => {
                     </div>
                   </div>
                   <div className="text-right text-sm">
-                    <p className="text-green-400">+{stats.additions}</p>
-                    <p className="text-red-400">-{stats.deletions}</p>
+                    <div className="flex items-center gap-1 text-green-400">
+                      <Plus className="w-3 h-3" />
+                      <span>{stats.additions}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-red-400">
+                      <Minus className="w-3 h-3" />
+                      <span>{stats.deletions}</span>
+                    </div>
                   </div>
                 </div>
               ))}

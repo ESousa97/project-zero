@@ -10,14 +10,15 @@ interface StatCardProps {
   trendDirection?: 'up' | 'down';
 }
 
-const StatCard: React.FC<StatCardProps> = ({ 
-  title, 
-  value, 
-  icon: Icon, 
-  color, 
+const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  icon: Icon,
+  color,
   trend,
-  trendDirection = 'up'
+  trendDirection = 'up',
 }) => {
+  // Mapeia cores para gradientes, ícones e bordas de acordo com o tema
   const colorClasses = {
     blue: {
       bg: 'from-blue-500 to-blue-600',
@@ -46,9 +47,10 @@ const StatCard: React.FC<StatCardProps> = ({
     },
   };
 
+  // Formata valores grandes para abreviação (ex: 1500 => 1.5K, 1500000 => 1.5M)
   const formatValue = (val: number): string => {
-    if (val >= 1000000) {
-      return `${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1_000_000) {
+      return `${(val / 1_000_000).toFixed(1)}M`;
     }
     if (val >= 1000) {
       return `${(val / 1000).toFixed(1)}K`;
@@ -57,15 +59,20 @@ const StatCard: React.FC<StatCardProps> = ({
   };
 
   return (
-    <div className={`bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border ${colorClasses[color].border} hover:shadow-lg hover:shadow-${color}-500/10 transition-all duration-300 group`}>
+    <div
+      className={`bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border ${colorClasses[color].border} hover:shadow-lg hover:shadow-${color}-500/10 transition-all duration-300 group`}
+    >
       <div className="flex items-center justify-between">
+        {/* Texto e tendência */}
         <div className="flex-1">
           <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
           <p className="text-3xl font-bold text-white mb-2">{formatValue(value)}</p>
           {trend && (
-            <div className={`flex items-center space-x-1 ${
-              trendDirection === 'up' ? 'text-green-400' : 'text-red-400'
-            }`}>
+            <div
+              className={`flex items-center space-x-1 ${
+                trendDirection === 'up' ? 'text-green-400' : 'text-red-400'
+              }`}
+            >
               {trendDirection === 'up' ? (
                 <TrendingUp className="w-4 h-4" />
               ) : (
@@ -75,8 +82,11 @@ const StatCard: React.FC<StatCardProps> = ({
             </div>
           )}
         </div>
-        
-        <div className={`p-3 bg-gradient-to-r ${colorClasses[color].bg} rounded-lg group-hover:scale-110 transition-transform duration-300`}>
+
+        {/* Ícone colorido com efeito hover */}
+        <div
+          className={`p-3 bg-gradient-to-r ${colorClasses[color].bg} rounded-lg group-hover:scale-110 transition-transform duration-300`}
+        >
           <Icon className="w-6 h-6 text-white" />
         </div>
       </div>

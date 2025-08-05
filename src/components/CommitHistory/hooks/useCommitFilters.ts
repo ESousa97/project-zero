@@ -1,9 +1,10 @@
-// src/components/CommitHistory/hooks/useCommitFilters.ts - ATUALIZADO
+// src/components/CommitHistory/hooks/useCommitFilters.ts
 import { useState, useCallback, useMemo } from 'react';
 import type { ExtendedCommit, CommitFiltersState, CommitType } from '../types';
 import { getTimeFilterMilliseconds } from '../types';
 import type { Commit } from '../../../types/github';
 
+// Estado inicial dos filtros
 const initialFilters: CommitFiltersState = {
   searchTerm: '',
   timeFilter: 'all',
@@ -13,20 +14,27 @@ const initialFilters: CommitFiltersState = {
   selectedBranch: 'main'
 };
 
+/**
+ * Hook para gerenciar filtros e processamento dos commits
+ * @param commits Array de commits crus do GitHub
+ * @returns Estado e funções para filtros e commits filtrados
+ */
 export const useCommitFilters = (commits: Commit[]) => {
   const [filters, setFilters] = useState<CommitFiltersState>(initialFilters);
 
-  // Processar commits com informações estendidas
+  /**
+   * Processa commits com informações estendidas e categorização
+   * Substitua os comentários de emojis por ícones Lucide no componente de UI
+   */
   const extendedCommits: ExtendedCommit[] = useMemo(() => {
-    console.log(`🔄 Processando ${commits.length} commits totais para análise...`);
-    
+    // console.log removido
     if (!commits.length) return [];
-    
+
     return commits.map(commit => {
       const message = commit.commit.message;
       const date = new Date(commit.commit.author.date);
 
-      // Detectar tipo de commit baseado na mensagem
+      // Determina o tipo de commit pela mensagem
       let commitType: CommitType = 'other';
       const lowerMessage = message.toLowerCase();
       if (lowerMessage.startsWith('feat')) commitType = 'feat';
@@ -37,14 +45,14 @@ export const useCommitFilters = (commits: Commit[]) => {
       else if (lowerMessage.startsWith('test')) commitType = 'test';
       else if (lowerMessage.startsWith('chore')) commitType = 'chore';
 
-      // Garantir que commit.author seja sempre definido
+      // Normaliza autor do commit (sempre definido)
       const normalizedCommitAuthor = {
         name: commit.commit.author?.name || 'Unknown',
         email: commit.commit.author?.email || 'unknown@email.com',
         date: commit.commit.author?.date || new Date().toISOString()
       };
 
-      // Garantir que commit.committer seja sempre definido
+      // Normaliza committer do commit (sempre definido)
       const normalizedCommitCommitter = {
         name: commit.commit.committer?.name || normalizedCommitAuthor.name,
         email: commit.commit.committer?.email || normalizedCommitAuthor.email,
@@ -53,10 +61,12 @@ export const useCommitFilters = (commits: Commit[]) => {
 
       return {
         ...commit,
-        author: commit.author ? {
-          login: commit.author.login,
-          avatar_url: commit.author.avatar_url
-        } : undefined,
+        author: commit.author
+          ? {
+              login: commit.author.login,
+              avatar_url: commit.author.avatar_url
+            }
+          : undefined,
         commit: {
           ...commit.commit,
           author: normalizedCommitAuthor,
@@ -72,63 +82,54 @@ export const useCommitFilters = (commits: Commit[]) => {
     });
   }, [commits]);
 
-  // CORRIGIDO: Replicar lógica do Dashboard - commits reais têm prioridade ABSOLUTA
+  /**
+   * Aplica os filtros ao conjunto de commits estendidos
+   */
   const filteredCommits = useMemo(() => {
-    // Se não temos commits reais, retornar array vazio
     if (!commits.length) {
-      console.log(`🔍 Nenhum commit real disponível para filtrar`);
+      // console.log removido
       return [];
     }
 
     let filtered = [...extendedCommits];
-    
-    console.log(`🔍 Iniciando filtragem de ${filtered.length} commits REAIS...`);
 
-    // 1. Filtro de busca
+    // 1. Filtro de busca por termo
     if (filters.searchTerm) {
-      const beforeFilter = filtered.length;
       const searchTerm = filters.searchTerm.toLowerCase();
-      filtered = filtered.filter(commit => 
+      filtered = filtered.filter(commit =>
         commit.commit.message.toLowerCase().includes(searchTerm) ||
         commit.commit.author.name.toLowerCase().includes(searchTerm) ||
         commit.sha.toLowerCase().includes(searchTerm) ||
         (commit.author?.login || '').toLowerCase().includes(searchTerm)
       );
-      console.log(`🔍 Filtro busca: ${beforeFilter} → ${filtered.length} commits`);
     }
 
-    // 2. Filtro por autor
+    // 2. Filtro por autor específico
     if (filters.selectedAuthor !== 'all') {
-      const beforeFilter = filtered.length;
       filtered = filtered.filter(commit => commit.commit.author.name === filters.selectedAuthor);
-      console.log(`👤 Filtro autor: ${beforeFilter} → ${filtered.length} commits`);
     }
 
-    // 3. Filtro de tempo (aplicado a TODOS os dados REAIS)
+    // 3. Filtro por período de tempo
     if (filters.timeFilter !== 'all') {
-      const beforeFilter = filtered.length;
       const filterMilliseconds = getTimeFilterMilliseconds(filters.timeFilter);
-      
+
       if (filterMilliseconds) {
         const now = Date.now();
         const cutoffTime = now - filterMilliseconds;
-        
+
         filtered = filtered.filter(commit => {
           try {
             const commitTime = new Date(commit.commit.author.date).getTime();
-            const isInPeriod = commitTime >= cutoffTime;
-            return isInPeriod;
-          } catch (error) {
-            console.warn('Erro ao processar data do commit:', error);
+            return commitTime >= cutoffTime;
+          } catch {
+            // Ignora commits com data inválida
             return false;
           }
         });
       }
-      
-      console.log(`⏰ Filtro tempo (${filters.timeFilter}): ${beforeFilter} → ${filtered.length} commits REAIS`);
     }
 
-    // 4. Ordenação
+    // 4. Ordenação conforme filtro
     filtered.sort((a, b) => {
       switch (filters.sortBy) {
         case 'date':
@@ -146,41 +147,35 @@ export const useCommitFilters = (commits: Commit[]) => {
       }
     });
 
-    console.log(`📋 Total após filtros REAIS: ${filtered.length} commits`);
     return filtered;
   }, [extendedCommits, filters, commits.length]);
 
-  // Para a LISTA: Apenas os 10 melhores commits filtrados (como no Dashboard)
+  // Lista limitada para exibição (top 10)
   const limitedCommitsForList = useMemo(() => {
-    const limited = filteredCommits.slice(0, 10);
-    console.log(`🖥️ Lista exibindo: ${limited.length} de ${filteredCommits.length} commits filtrados REAIS`);
-    return limited;
+    return filteredCommits.slice(0, 10);
   }, [filteredCommits]);
 
-  // Para ANALYTICS: TODOS os commits filtrados REAIS (sem limite)
-  const allFilteredCommitsForAnalytics = useMemo(() => {
-    console.log(`📊 Analytics usando: ${filteredCommits.length} commits filtrados REAIS completos`);
-    return filteredCommits;
-  }, [filteredCommits]);
+  // Todos os commits filtrados para análise (sem limite)
+  const allFilteredCommitsForAnalytics = useMemo(() => filteredCommits, [filteredCommits]);
 
-  // Autores únicos baseados nos commits filtrados
+  // Lista de autores únicos dos commits filtrados, ordenados alfabeticamente
   const uniqueAuthors = useMemo(() => {
     return [...new Set(filteredCommits.map(commit => commit.commit.author.name))]
       .filter(name => name !== '')
       .sort();
   }, [filteredCommits]);
 
-  // Atualizar filtro
+  // Atualiza um filtro específico
   const updateFilter = useCallback((key: keyof CommitFiltersState, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  // Resetar filtros
+  // Reseta filtros, preservando repo e branch selecionados
   const resetFilters = useCallback(() => {
-    setFilters(prev => ({ 
-      ...initialFilters, 
-      selectedRepo: prev.selectedRepo, 
-      selectedBranch: prev.selectedBranch 
+    setFilters(prev => ({
+      ...initialFilters,
+      selectedRepo: prev.selectedRepo,
+      selectedBranch: prev.selectedBranch
     }));
   }, []);
 
@@ -188,17 +183,17 @@ export const useCommitFilters = (commits: Commit[]) => {
     filters,
     extendedCommits,
     filteredCommits,
-    limitedCommitsForList, // 10 commits para lista
-    allFilteredCommitsForAnalytics, // Todos os commits filtrados para analytics
+    limitedCommitsForList,          // Top 10 para lista
+    allFilteredCommitsForAnalytics, // Todos para analytics
     uniqueAuthors,
     updateFilter,
     resetFilters,
-    // Estatísticas úteis
     totalFilteredCount: filteredCommits.length,
     totalCommitsCount: extendedCommits.length,
-    isFiltered: filters.searchTerm !== '' || 
-                filters.selectedAuthor !== 'all' || 
-                filters.timeFilter !== 'all' || 
-                filters.sortBy !== 'date'
+    isFiltered:
+      filters.searchTerm !== '' ||
+      filters.selectedAuthor !== 'all' ||
+      filters.timeFilter !== 'all' ||
+      filters.sortBy !== 'date'
   };
 };

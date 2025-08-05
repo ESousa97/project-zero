@@ -11,12 +11,10 @@ import {
 } from 'recharts';
 import { useGitHub } from '../context/GitHubContext';
 
-// Tipos para ordenação, filtro e visualização
 type SortBy = 'updated' | 'created' | 'name' | 'stars' | 'forks' | 'size' | 'issues';
 type FilterBy = 'all' | 'public' | 'private' | 'archived' | 'template';
 type ViewMode = 'grid' | 'list' | 'analytics' | 'comparison';
 
-// Interface para métricas dos repositórios
 interface RepositoryMetrics {
   id: number;
   name: string;
@@ -33,7 +31,6 @@ interface RepositoryMetrics {
   health: number;
 }
 
-// Interface para métricas de linguagem
 interface LanguageMetrics {
   language: string;
   count: number;
@@ -44,7 +41,6 @@ interface LanguageMetrics {
   percentage: number;
 }
 
-// Interface para métricas de atividade mensal
 interface ActivityMetrics {
   date: string;
   created: number;
@@ -53,10 +49,8 @@ interface ActivityMetrics {
 }
 
 const RepositoryList: React.FC = () => {
-  // Contexto com dados de repositórios e funções
   const { repositories, loading, fetchRepositories } = useGitHub();
-  
-  // Estados locais para filtros, buscas, ordenação, visualização e seleção
+
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('updated');
   const [filterBy, setFilterBy] = useState<FilterBy>('all');
@@ -66,27 +60,22 @@ const RepositoryList: React.FC = () => {
   const [selectedRepos, setSelectedRepos] = useState<number[]>([]);
   const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter' | 'year' | 'all'>('all');
 
-  // Memoizar fetchRepositories para usar no useEffect
   const memoizedFetchRepositories = useCallback(() => {
     fetchRepositories();
   }, [fetchRepositories]);
 
-  // Otimizar useEffect - apenas quando necessário
   useEffect(() => {
     if (repositories.length === 0 && !loading) {
       memoizedFetchRepositories();
     }
   }, [repositories.length, loading, memoizedFetchRepositories]);
 
-  // Memoizar métricas de repositórios
   const repositoryMetrics: RepositoryMetrics[] = useMemo(() => {
     if (!repositories.length) return [];
-    
     const now = new Date();
     return repositories.map(repo => {
       const updated = new Date(repo.updated_at);
       const daysSinceUpdate = (now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24);
-
       const activity = Math.max(0, 100 - daysSinceUpdate * 2);
       const popularity = Math.min(100, (repo.stargazers_count + repo.forks_count) * 2);
       const engagement = repo.stargazers_count > 0 
@@ -112,16 +101,12 @@ const RepositoryList: React.FC = () => {
     });
   }, [repositories]);
 
-  // Memoizar métricas de linguagem
   const languageMetrics: LanguageMetrics[] = useMemo(() => {
     if (!repositories.length) return [];
-    
     const languageMap = new Map<string, { count: number; totalStars: number; totalSize: number }>();
-    
     repositories.forEach(repo => {
       const lang = repo.language || 'Unknown';
       const current = languageMap.get(lang) || { count: 0, totalStars: 0, totalSize: 0 };
-      
       languageMap.set(lang, {
         count: current.count + 1,
         totalStars: current.totalStars + repo.stargazers_count,
@@ -143,19 +128,14 @@ const RepositoryList: React.FC = () => {
       .sort((a, b) => b.count - a.count);
   }, [repositories]);
 
-  // Memoizar métricas de atividade
   const activityMetrics: ActivityMetrics[] = useMemo(() => {
     if (!repositories.length) return [];
-    
     const monthlyData = new Map<string, { created: number; updated: number }>();
-    
     repositories.forEach(repo => {
       const createdMonth = new Date(repo.created_at).toISOString().slice(0, 7);
       const updatedMonth = new Date(repo.updated_at).toISOString().slice(0, 7);
-      
       const createdData = monthlyData.get(createdMonth) || { created: 0, updated: 0 };
       monthlyData.set(createdMonth, { ...createdData, created: createdData.created + 1 });
-      
       const updatedData = monthlyData.get(updatedMonth) || { created: 0, updated: 0 };
       monthlyData.set(updatedMonth, { ...updatedData, updated: updatedData.updated + 1 });
     });
@@ -171,21 +151,19 @@ const RepositoryList: React.FC = () => {
       .slice(-12);
   }, [repositories]);
 
-  // Otimizar filteredRepositories com dependências específicas
   const filteredRepositories = useMemo(() => {
     return repositories.filter(repo => {
       const searchTermLower = searchTerm.toLowerCase();
       const matchesSearch = repo.name.toLowerCase().includes(searchTermLower) ||
-                           (repo.description || '').toLowerCase().includes(searchTermLower) ||
-                           (repo.language || '').toLowerCase().includes(searchTermLower);
-
+        (repo.description || '').toLowerCase().includes(searchTermLower) ||
+        (repo.language || '').toLowerCase().includes(searchTermLower);
       if (!matchesSearch) return false;
 
-      const matchesVisibility = filterBy === 'all' || 
-                               (filterBy === 'public' && !repo.private) ||
-                               (filterBy === 'private' && repo.private) ||
-                               (filterBy === 'archived' && repo.archived) ||
-                               (filterBy === 'template' && repo.is_template);
+      const matchesVisibility = filterBy === 'all' ||
+        (filterBy === 'public' && !repo.private) ||
+        (filterBy === 'private' && repo.private) ||
+        (filterBy === 'archived' && repo.archived) ||
+        (filterBy === 'template' && repo.is_template);
       if (!matchesVisibility) return false;
 
       const matchesLanguage = languageFilter === 'all' || repo.language === languageFilter;
@@ -195,7 +173,7 @@ const RepositoryList: React.FC = () => {
         const now = new Date();
         const repoDate = new Date(repo.updated_at);
         const daysDiff = (now.getTime() - repoDate.getTime()) / (1000 * 60 * 60 * 24);
-        
+
         switch (dateRange) {
           case 'week': return daysDiff <= 7;
           case 'month': return daysDiff <= 30;
@@ -204,7 +182,7 @@ const RepositoryList: React.FC = () => {
           default: return true;
         }
       }
-      
+
       return true;
     }).sort((a, b) => {
       switch (sortBy) {
@@ -228,12 +206,10 @@ const RepositoryList: React.FC = () => {
     });
   }, [repositories, searchTerm, sortBy, filterBy, languageFilter, dateRange]);
 
-  // Memoizar languages para filtro
   const languages = useMemo(() => {
     return Array.from(new Set(repositories.map(r => r.language).filter(Boolean))).sort();
   }, [repositories]);
 
-  // Memoizar stats
   const stats = useMemo(() => {
     if (!repositories.length) return {
       total: 0,
@@ -254,12 +230,12 @@ const RepositoryList: React.FC = () => {
     const totalForks = repositories.reduce((sum, repo) => sum + repo.forks_count, 0);
     const totalSize = repositories.reduce((sum, repo) => sum + repo.size, 0);
     const avgStars = repositories.length > 0 ? totalStars / repositories.length : 0;
-    
+
     const publicRepos = repositories.filter(repo => !repo.private).length;
     const privateRepos = repositories.length - publicRepos;
     const archivedRepos = repositories.filter(repo => repo.archived).length;
     const templateRepos = repositories.filter(repo => repo.is_template).length;
-    
+
     const activeRepos = repositories.filter(repo => {
       const daysSinceUpdate = (now.getTime() - new Date(repo.updated_at).getTime()) / (1000 * 60 * 60 * 24);
       return daysSinceUpdate <= 30;
@@ -280,7 +256,6 @@ const RepositoryList: React.FC = () => {
     };
   }, [repositories]);
 
-  // Formata datas para exibição amigável
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString('pt-BR', {
       year: 'numeric',
@@ -291,12 +266,11 @@ const RepositoryList: React.FC = () => {
     });
   };
 
-  // Retorna texto amigável para tempo desde data informada
   const getTimeAgo = (dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'agora mesmo';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min atrás`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} h atrás`;
@@ -305,7 +279,6 @@ const RepositoryList: React.FC = () => {
     return `${Math.floor(diffInSeconds / 31536000)} anos atrás`;
   };
 
-  // Mapear linguagens para classes de cores (Tailwind)
   const getLanguageColor = (language: string | null) => {
     const colors: { [key: string]: string } = {
       'JavaScript': 'bg-yellow-400',
@@ -329,7 +302,6 @@ const RepositoryList: React.FC = () => {
     return colors[language || ''] || 'bg-gray-500';
   };
 
-  // Cores para indicar saúde do repositório
   const getHealthColor = (health: number) => {
     if (health >= 80) return 'text-green-400';
     if (health >= 60) return 'text-yellow-400';
@@ -337,26 +309,22 @@ const RepositoryList: React.FC = () => {
     return 'text-red-400';
   };
 
-  // Ícones para indicar saúde
   const getHealthIcon = (health: number) => {
     if (health >= 80) return CheckCircle;
     if (health >= 60) return Clock;
     return AlertCircle;
   };
 
-  // Seleciona/deseleciona repositórios na lista para comparação
   const toggleRepoSelection = (repoId: number) => {
-    setSelectedRepos(prev => 
-      prev.includes(repoId) 
+    setSelectedRepos(prev =>
+      prev.includes(repoId)
         ? prev.filter(id => id !== repoId)
         : [...prev, repoId]
     );
   };
 
-  // Paleta de cores usada em gráficos
   const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'];
 
-  // JSX do componente
   return (
     <div className="space-y-6">
       {/* Cabeçalho */}
@@ -370,10 +338,9 @@ const RepositoryList: React.FC = () => {
             {filteredRepositories.length} de {repositories.length} repositórios • {stats.totalStars} ★ total
           </p>
         </div>
-        
+
         {/* Controles de visualização e atualização */}
         <div className="flex items-center gap-4">
-          {/* Botões para alternar modo de visualização */}
           <div className="flex bg-slate-800 rounded-lg p-1">
             {(['grid', 'list', 'analytics', 'comparison'] as const).map((mode) => (
               <button
@@ -395,7 +362,6 @@ const RepositoryList: React.FC = () => {
             ))}
           </div>
 
-          {/* Botão para atualizar lista */}
           <button
             onClick={fetchRepositories}
             disabled={loading}
@@ -614,7 +580,6 @@ const RepositoryList: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Campo de busca */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
             <input
@@ -627,7 +592,6 @@ const RepositoryList: React.FC = () => {
             />
           </div>
 
-          {/* Ordenação */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortBy)}
@@ -643,7 +607,6 @@ const RepositoryList: React.FC = () => {
             <option value="issues">Issues abertas</option>
           </select>
 
-          {/* Filtro de visibilidade */}
           <select
             value={filterBy}
             onChange={(e) => setFilterBy(e.target.value as FilterBy)}
@@ -657,7 +620,6 @@ const RepositoryList: React.FC = () => {
             <option value="template">Templates</option>
           </select>
 
-          {/* Filtro de linguagem */}
           <select
             value={languageFilter}
             onChange={(e) => setLanguageFilter(e.target.value)}
@@ -671,11 +633,9 @@ const RepositoryList: React.FC = () => {
           </select>
         </div>
 
-        {/* Filtros avançados (visíveis conforme estado) */}
         {showAdvancedFilters && (
           <div id="advanced-filters" className="mt-4 pt-4 border-t border-slate-600" aria-live="polite">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Seleção de período */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2" htmlFor="date-range">
                   Período de Atividade
@@ -695,7 +655,6 @@ const RepositoryList: React.FC = () => {
                 </select>
               </div>
 
-              {/* Contagem de repositórios selecionados */}
               {selectedRepos.length > 0 && (
                 <div className="flex items-end">
                   <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-3">
@@ -710,7 +669,6 @@ const RepositoryList: React.FC = () => {
         )}
       </div>
 
-      {/* Lista ou grade de repositórios */}
       {loading && repositories.length === 0 ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
@@ -724,10 +682,10 @@ const RepositoryList: React.FC = () => {
             const metrics = repositoryMetrics.find(m => m.id === repo.id);
             const HealthIcon = getHealthIcon(metrics?.health || 0);
             const isSelected = selectedRepos.includes(repo.id);
-            
+
             return (
-              <div 
-                key={repo.id} 
+              <div
+                key={repo.id}
                 className={`group bg-slate-800/50 backdrop-blur-sm border rounded-xl p-6 hover:border-blue-300/50 transition-all duration-300 hover:shadow-lg cursor-pointer ${
                   isSelected ? 'border-blue-500 bg-blue-900/20' : 'border-slate-700'
                 } ${viewMode === 'list' ? 'flex items-center space-x-6' : ''}`}
@@ -855,8 +813,8 @@ const RepositoryList: React.FC = () => {
                     </div>
                   </>
                 ) : (
-                  // Visualização em lista simplificada
                   <>
+                    {/* Visualização em lista simplificada */}
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors">
@@ -923,7 +881,6 @@ const RepositoryList: React.FC = () => {
           })}
         </div>
       ) : (
-        // Mensagem caso nenhum repositório seja encontrado
         <div className="text-center py-12">
           <GitBranch className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-slate-400 mb-2">Nenhum repositório encontrado</h3>
@@ -933,14 +890,13 @@ const RepositoryList: React.FC = () => {
         </div>
       )}
 
-      {/* Visualização de comparação entre múltiplos repositórios */}
       {viewMode === 'comparison' && selectedRepos.length > 1 && (
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
             <BarChart3 className="w-5 h-5 mr-2 text-blue-400" />
             Comparação de Repositórios Selecionados
           </h3>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
