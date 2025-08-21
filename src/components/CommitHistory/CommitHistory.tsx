@@ -278,16 +278,11 @@ const CommitHistory: React.FC = () => {
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
               <div className="text-sm">
-                <p className="text-blue-400 font-medium mb-1">Busca Completa - Método Dashboard</p>
+                <p className="text-blue-400 font-medium mb-1">Busca Completa</p>
                 <p className="text-slate-300 leading-relaxed">
-                  Utilizando a <strong>mesma metodologia do Dashboard</strong> que funciona corretamente. 
+                  Analise com facilidade<strong> todos os repositórios</strong> em um só lugar. 
                   Coleta de <strong>TODOS os {repositories.length} repositórios</strong> via API real.
                 </p>
-                <div className="mt-2 text-xs text-slate-400">
-                  <p><strong>Metodologia:</strong> Igual ao Dashboard (que funciona)</p>
-                  <p><strong>Dados:</strong> 100% reais da API GitHub</p>
-                  <p><strong>Objetivo:</strong> Máxima cobertura histórica</p>
-                </div>
                 {allReposCommits.length > 0 && (
                   <div className="mt-3 space-y-1">
                     <div className="flex items-center gap-2">
