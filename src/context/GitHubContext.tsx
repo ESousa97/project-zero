@@ -76,11 +76,55 @@ export const useGitHub = (): GitHubContextType => {
 
 const GITHUB_API_BASE = 'https://api.github.com';
 
+// Função helper para verificar se localStorage está disponível
+const isLocalStorageAvailable = (): boolean => {
+  try {
+    if (typeof window === 'undefined') return false;
+    const testKey = '__localStorage_test__';
+    window.localStorage.setItem(testKey, 'test');
+    window.localStorage.removeItem(testKey);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Função helper para obter token de forma segura
+const getStoredToken = (): string => {
+  if (!isLocalStorageAvailable()) {
+    console.warn('🔒 localStorage não está disponível, usando modo offline');
+    return '';
+  }
+  
+  try {
+    return localStorage.getItem('github_token') || '';
+  } catch (error) {
+    console.error('❌ Erro ao acessar localStorage:', error);
+    return '';
+  }
+};
+
+// Função helper para salvar token de forma segura
+const setStoredToken = (token: string): void => {
+  if (!isLocalStorageAvailable()) {
+    console.warn('🔒 localStorage não está disponível, token não será persistido');
+    return;
+  }
+  
+  try {
+    if (token) {
+      localStorage.setItem('github_token', token);
+    } else {
+      localStorage.removeItem('github_token');
+    }
+  } catch (error) {
+    console.error('❌ Erro ao salvar token no localStorage:', error);
+  }
+};
+
 export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Token state
-  const [token, setTokenState] = useState<string>(() => 
-    localStorage.getItem('github_token') || ''
-  );
+  // Token state com inicialização segura
+  const [token, setTokenState] = useState<string>(() => getStoredToken());
 
   // Refs para evitar loops
   const initializationRef = useRef(false);
@@ -89,22 +133,35 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // State hook modularizado
   const state = useGitHubState();
 
-  // API instance - criada apenas quando token existe
+  // API instance - criada apenas quando token existe e é válido
   const api = useMemo(() => {
-    if (!token) return null;
+    if (!token || token.length < 10) {
+      console.warn('🔑 Token inválido ou muito curto:', token ? `${token.substring(0, 6)}...` : 'vazio');
+      return null;
+    }
+    console.log('🔧 Criando instância da API com token válido');
     return new GitHubAPI(token);
   }, [token]);
 
-  // Services instance - criada apenas quando API e state existem
+  // Services instance
   const services = useMemo(() => {
     if (!api) return null;
     return new GitHubServices(api, state);
   }, [api, state]);
 
-  // Token setter que limpa dados e atualiza localStorage
+  // Token setter com validação
   const setToken = useCallback((newToken: string) => {
+    console.log('🔑 Definindo novo token:', newToken ? `${newToken.substring(0, 6)}...` : 'vazio');
+    
+    // Validação básica do token
+    if (newToken && !newToken.startsWith('ghp_') && !newToken.startsWith('github_pat_')) {
+      console.error('❌ Token inválido: deve começar com ghp_ ou github_pat_');
+      state.setError('Token inválido. Verifique se é um Personal Access Token válido.');
+      return;
+    }
+    
     setTokenState(newToken);
-    localStorage.setItem('github_token', newToken);
+    setStoredToken(newToken);
     
     if (services) {
       services.updateToken(newToken);
@@ -117,14 +174,26 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     initializationRef.current = false;
   }, [services, state]);
 
-  // Wrapper methods para o services com fallback
+  // Wrapper methods com melhor tratamento de erro
   const fetchRepositories = useCallback(async () => {
-    if (!services) throw new Error('Token do GitHub é obrigatório');
+    if (!services) {
+      const errorMsg = 'Token do GitHub é obrigatório para buscar repositórios';
+      console.error('❌', errorMsg);
+      state.setRepositoryError(errorMsg);
+      throw new Error(errorMsg);
+    }
     return services.fetchRepositories();
-  }, [services]);
+  }, [services, state]);
 
   const fetchCommits = useCallback(async (repoFullName: string, branch: string = 'main') => {
     if (!token || isLoadingRef.current) {
+      return;
+    }
+
+    // Validação do token antes da requisição
+    if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+      console.error('❌ Token inválido para buscar commits');
+      state.setCommitError('Token do GitHub inválido');
       return;
     }
 
@@ -132,30 +201,46 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isLoadingRef.current = true;
       state.setLoadingCommits(true);
       
+      console.log(`🔍 Buscando commits de ${repoFullName} com token: ${token.substring(0, 6)}...`);
+      
       const response = await fetch(
         `${GITHUB_API_BASE}/repos/${repoFullName}/commits?sha=${branch}&per_page=100`,
         {
           headers: {
             'Authorization': `token ${token}`,
             'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'GitVision-Pro/1.0',
           },
         }
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          console.warn(`Branch ${branch} não encontrada em ${repoFullName}`);
+        const errorText = await response.text();
+        console.error(`❌ Erro ${response.status}:`, errorText);
+        
+        if (response.status === 401) {
+          const errorMsg = 'Token do GitHub inválido ou expirado. Verifique suas credenciais.';
+          state.setCommitError(errorMsg);
+          state.setError(errorMsg);
           return;
         }
+        
+        if (response.status === 404) {
+          console.warn(`⚠️ Branch ${branch} não encontrada em ${repoFullName}`);
+          return;
+        }
+        
         throw new Error(`Erro ${response.status}: ${response.statusText}`);
       }
 
       const commitsData = await response.json();
       state.setCommits(commitsData);
+      console.log(`✅ ${commitsData.length} commits carregados de ${repoFullName}`);
       
     } catch (error) {
-      console.error('Erro ao buscar commits:', error);
-      state.setCommitError(error instanceof Error ? error.message : 'Erro desconhecido ao buscar commits');
+      console.error('❌ Erro ao buscar commits:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao buscar commits';
+      state.setCommitError(errorMessage);
     } finally {
       state.setLoadingCommits(false);
       isLoadingRef.current = false;
@@ -163,9 +248,14 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [token, state]);
 
   const fetchUser = useCallback(async () => {
-    if (!services) throw new Error('Token do GitHub é obrigatório');
+    if (!services) {
+      const errorMsg = 'Token do GitHub é obrigatório para buscar usuário';
+      console.error('❌', errorMsg);
+      state.setUserError(errorMsg);
+      throw new Error(errorMsg);
+    }
     return services.fetchUser();
-  }, [services]);
+  }, [services, state]);
 
   const fetchBranches = useCallback(async (repo: string) => {
     if (!services) throw new Error('Token do GitHub é obrigatório');
@@ -248,15 +338,9 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [services]);
 
-  // AUTO-LOAD EFFECT - COM PROTEÇÃO CONTRA LOOPS
+  // AUTO-LOAD EFFECT com melhor logging
   useEffect(() => {
     const initializeData = async () => {
-      // Só inicializa se:
-      // 1. Tem token
-      // 2. Tem services
-      // 3. Não foi inicializado ainda
-      // 4. Não tem user carregado
-      // 5. Não está carregando user
       if (
         token && 
         services && 
@@ -266,23 +350,29 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ) {
         try {
           initializationRef.current = true;
-          console.log('🚀 Initializing GitHub data...');
+          console.log('🚀 Inicializando dados do GitHub...');
+          console.log('🔑 Token disponível:', token ? `${token.substring(0, 6)}...` : 'NENHUM');
           
           await Promise.all([
             services.fetchUser(),
             services.fetchRepositories()
           ]);
           
-          console.log('✅ GitHub data loaded successfully');
+          console.log('✅ Dados do GitHub carregados com sucesso');
         } catch (error) {
-          console.error('❌ Failed to auto-load GitHub data:', error);
+          console.error('❌ Falha ao carregar dados do GitHub:', error);
           initializationRef.current = false; // Reset on error
+          
+          // Tratamento específico para erro 401
+          if (error instanceof Error && error.message.includes('401')) {
+            state.setError('Token do GitHub inválido ou expirado. Por favor, configure um novo token.');
+          }
         }
       }
     };
 
     initializeData();
-  }, [token, services, state.data.user, state.loading.loadingUser]); // Incluindo as dependências necessárias
+  }, [token, services, state.data.user, state.loading.loadingUser, state]);
 
   // Auto-limpeza de cache
   useEffect(() => {
@@ -294,6 +384,17 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     return () => clearInterval(interval);
   }, [api]);
+
+  // Debug do token no ambiente de produção
+  useEffect(() => {
+    console.log('🔍 Debug Token:', {
+      hasToken: !!token,
+      tokenLength: token?.length || 0,
+      tokenPrefix: token?.substring(0, 6) || 'N/A',
+      isLocalStorageAvailable: isLocalStorageAvailable(),
+      environment: typeof window !== 'undefined' ? 'browser' : 'server'
+    });
+  }, [token]);
 
   // Context value
   const value: GitHubContextType = {
