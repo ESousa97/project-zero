@@ -1,13 +1,8 @@
-// src/context/GitHubContext.tsx
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { GitHubAPI } from './modules/GitHubAPI';
 import { useGitHubState } from './modules/GitHubState';
 import { GitHubServices } from './modules/GitHubServices';
-import type {
-  Repository,
-  Commit,
-  User,
-} from '../types/github';
+import type { Repository, Commit, User } from '../types/github';
 
 interface CommitFetchOptions {
   since?: string;
@@ -26,11 +21,8 @@ interface SearchOptions {
 }
 
 interface GitHubContextType {
-  // Token management
   token: string;
   setToken: (token: string) => void;
-
-  // Data
   repositories: Repository[];
   commits: Commit[];
   user: User | null;
@@ -41,20 +33,14 @@ interface GitHubContextType {
   releases: unknown[];
   issues: unknown[];
   pullRequests: unknown[];
-
-  // Loading states
   loading: boolean;
   loadingCommits: boolean;
   loadingRepositories: boolean;
   loadingUser: boolean;
-
-  // Error states
   error: string;
   commitError: string;
   repositoryError: string;
   userError: string;
-
-  // Service methods
   fetchRepositories: () => Promise<void>;
   fetchCommits: (repo: string, branch?: string, options?: CommitFetchOptions) => Promise<void>;
   fetchUser: () => Promise<void>;
@@ -65,19 +51,13 @@ interface GitHubContextType {
   fetchReleases: (repo: string) => Promise<void>;
   fetchIssues: (repo: string, state?: 'open' | 'closed' | 'all') => Promise<void>;
   fetchPullRequests: (repo: string, state?: 'open' | 'closed' | 'all') => Promise<void>;
-
-  // Advanced methods
   fetchCommitDetails: (repo: string, sha: string) => Promise<Commit | null>;
   fetchRepositoryStats: (repo: string) => Promise<unknown | null>;
   fetchContributorStats: (repo: string) => Promise<unknown[]>;
   fetchCodeFrequency: (repo: string) => Promise<unknown[]>;
   fetchPunchCard: (repo: string) => Promise<unknown[]>;
-
-  // Search and utility methods
   searchRepositories: (query: string, options?: SearchOptions) => Promise<Repository[]>;
   getRepositoryContents: (repo: string, path?: string, ref?: string) => Promise<unknown[]>;
-
-  // Management methods
   clearError: () => void;
   clearAllErrors: () => void;
   clearCache: () => void;
@@ -102,6 +82,10 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.getItem('github_token') || ''
   );
 
+  // Refs para evitar loops
+  const initializationRef = useRef(false);
+  const isLoadingRef = useRef(false);
+
   // State hook modularizado
   const state = useGitHubState();
 
@@ -125,10 +109,12 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (services) {
       services.updateToken(newToken);
     } else {
-      // Se não temos services ainda, limpa dados diretamente
       state.clearAllData();
       state.clearAllErrors();
     }
+    
+    // Reset initialization
+    initializationRef.current = false;
   }, [services, state]);
 
   // Wrapper methods para o services com fallback
@@ -137,21 +123,14 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return services.fetchRepositories();
   }, [services]);
 
-  // CORRIGIR: Evitar múltiplas atualizações de commits
   const fetchCommits = useCallback(async (repoFullName: string, branch: string = 'main') => {
-    if (!token) {
-      console.warn('❌ Token não disponível para buscar commits');
-      return;
-    }
-
-    if (state.loading.loadingCommits) {
-      console.log('⏳ Já está carregando, ignorando nova requisição de commits');
+    if (!token || isLoadingRef.current) {
       return;
     }
 
     try {
-      state.setLoading(true);
-      console.log(`🔍 Buscando commits de ${repoFullName}...`);
+      isLoadingRef.current = true;
+      state.setLoadingCommits(true);
       
       const response = await fetch(
         `${GITHUB_API_BASE}/repos/${repoFullName}/commits?sha=${branch}&per_page=100`,
@@ -165,23 +144,21 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (!response.ok) {
         if (response.status === 404) {
-          console.warn(`⚠️ Branch ${branch} não encontrada em ${repoFullName}`);
+          console.warn(`Branch ${branch} não encontrada em ${repoFullName}`);
           return;
         }
         throw new Error(`Erro ${response.status}: ${response.statusText}`);
       }
 
       const commitsData = await response.json();
-      
-      // IMPORTANTE: Substituir commits completamente, não acumular
       state.setCommits(commitsData);
-      console.log(`✅ ${commitsData.length} commits carregados de ${repoFullName}`);
       
     } catch (error) {
-      console.error('❌ Erro ao buscar commits:', error);
-      state.setError(error instanceof Error ? error.message : 'Erro desconhecido ao buscar commits');
+      console.error('Erro ao buscar commits:', error);
+      state.setCommitError(error instanceof Error ? error.message : 'Erro desconhecido ao buscar commits');
     } finally {
-      state.setLoading(false);
+      state.setLoadingCommits(false);
+      isLoadingRef.current = false;
     }
   }, [token, state]);
 
@@ -271,46 +248,41 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [services]);
 
-  // 🔥 AUTO-LOAD EFFECT - PRINCIPAL CORREÇÃO
+  // AUTO-LOAD EFFECT - COM PROTEÇÃO CONTRA LOOPS
   useEffect(() => {
     const initializeData = async () => {
-      // Só carrega se temos token, services e ainda não carregamos dados
-      if (token && services && !state.data.user && !state.loading.loadingUser) {
-        console.log('🚀 Auto-loading GitHub data...');
+      // Só inicializa se:
+      // 1. Tem token
+      // 2. Tem services
+      // 3. Não foi inicializado ainda
+      // 4. Não tem user carregado
+      // 5. Não está carregando user
+      if (
+        token && 
+        services && 
+        !initializationRef.current && 
+        !state.data.user && 
+        !state.loading.loadingUser
+      ) {
         try {
-          // Busca dados do usuário e repositórios automaticamente
+          initializationRef.current = true;
+          console.log('🚀 Initializing GitHub data...');
+          
           await Promise.all([
             services.fetchUser(),
             services.fetchRepositories()
           ]);
+          
           console.log('✅ GitHub data loaded successfully');
         } catch (error) {
           console.error('❌ Failed to auto-load GitHub data:', error);
+          initializationRef.current = false; // Reset on error
         }
       }
     };
 
     initializeData();
-  }, [token, services, state.data.user, state.loading.loadingUser]); // Dependências corretas
-
-  // Atualização automática de loading geral
-  useEffect(() => {
-    const isLoading = state.loading.loadingRepositories || 
-                     state.loading.loadingCommits || 
-                     state.loading.loadingUser;
-    state.setLoading(isLoading);
-  }, [state.loading.loadingRepositories, state.loading.loadingCommits, state.loading.loadingUser, state]);
-
-  // Atualização automática de erro geral
-  useEffect(() => {
-    const errors = [
-      state.errors.repositoryError, 
-      state.errors.commitError, 
-      state.errors.userError
-    ].filter(Boolean);
-    
-    state.setError(errors.length > 0 ? errors[0] : '');
-  }, [state.errors.repositoryError, state.errors.commitError, state.errors.userError, state]);
+  }, [token, services, state.data.user, state.loading.loadingUser]); // Incluindo as dependências necessárias
 
   // Auto-limpeza de cache
   useEffect(() => {
@@ -325,11 +297,8 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Context value
   const value: GitHubContextType = {
-    // Token management
     token,
     setToken,
-
-    // Data from state
     repositories: state.data.repositories,
     commits: state.data.commits,
     user: state.data.user,
@@ -340,20 +309,14 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     releases: state.data.releases,
     issues: state.data.issues,
     pullRequests: state.data.pullRequests,
-
-    // Loading states
     loading: state.loading.loading,
     loadingCommits: state.loading.loadingCommits,
     loadingRepositories: state.loading.loadingRepositories,
     loadingUser: state.loading.loadingUser,
-
-    // Error states
     error: state.errors.error,
     commitError: state.errors.commitError,
     repositoryError: state.errors.repositoryError,
     userError: state.errors.userError,
-
-    // Service methods
     fetchRepositories,
     fetchCommits,
     fetchUser,
@@ -364,19 +327,13 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     fetchReleases,
     fetchIssues,
     fetchPullRequests,
-
-    // Advanced methods
     fetchCommitDetails,
     fetchRepositoryStats,
     fetchContributorStats,
     fetchCodeFrequency,
     fetchPunchCard,
-
-    // Search and utility methods
     searchRepositories,
     getRepositoryContents,
-
-    // Management methods
     clearError: state.clearError,
     clearAllErrors: state.clearAllErrors,
     clearCache,

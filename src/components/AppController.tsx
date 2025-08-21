@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   GitBranch,
   Settings,
@@ -10,7 +10,6 @@ import { useGitHub } from '../context/GitHubContext';
 import { useNotificationManager } from './NotificationManager';
 import type { ViewType, MenuItem, BreadcrumbItem } from '../types/app';
 
-// Re-export dos tipos para compatibilidade
 export type { ViewType, MenuItem, BreadcrumbItem } from '../types/app';
 
 export interface AppState {
@@ -32,12 +31,19 @@ export interface AppState {
 export const useAppController = (): AppState => {
   const [currentView, setCurrentViewState] = useState<ViewType>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    // Inicialização do dark mode apenas uma vez
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : true;
+  });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastSync, setLastSync] = useState<Date>(new Date());
 
-  const { repositories, error, token, refreshAll, clearAllErrors } = useGitHub();
+  // Refs para controle de estado
+  const refreshTimeoutRef = useRef<number | null>(null);
+  const isRefreshingRef = useRef(false);
 
+  const { repositories, error, token, refreshAll, clearAllErrors } = useGitHub();
   const notificationManager = useNotificationManager();
 
   const setCurrentView = useCallback(
@@ -61,7 +67,7 @@ export const useAppController = (): AppState => {
         label: 'Repositórios',
         icon: GitBranch,
         description: 'Gestão avançada de repositórios com analytics',
-        badge: repositories.length.toString(),
+        badge: repositories.length > 0 ? repositories.length.toString() : undefined,
       },
       {
         id: 'commits',
@@ -105,7 +111,7 @@ export const useAppController = (): AppState => {
   }, []);
 
   const toggleDarkMode = useCallback(() => {
-    setDarkMode((prev) => {
+    setDarkMode((prev: boolean) => {
       const newMode = !prev;
       localStorage.setItem('darkMode', JSON.stringify(newMode));
       return newMode;
@@ -113,7 +119,10 @@ export const useAppController = (): AppState => {
   }, []);
 
   const handleRefresh = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+
     try {
+      isRefreshingRef.current = true;
       await refreshAll();
       setLastSync(new Date());
       notificationManager.addNotification({
@@ -127,6 +136,8 @@ export const useAppController = (): AppState => {
         title: 'Erro na Sincronização',
         message: 'Não foi possível atualizar os dados. Tente novamente.',
       });
+    } finally {
+      isRefreshingRef.current = false;
     }
   }, [refreshAll, notificationManager]);
 
@@ -134,29 +145,31 @@ export const useAppController = (): AppState => {
     setCurrentView('profile');
   }, [setCurrentView]);
 
-  useEffect(() => {
-    const savedDarkMode = localStorage.getItem('darkMode');
-    if (savedDarkMode) {
-      try {
-        setDarkMode(JSON.parse(savedDarkMode));
-      } catch {
-        // Silenciar erros de parse para não quebrar UI
-      }
-    }
-  }, []);
-
+  // Auto-refresh effect
   useEffect(() => {
     if (!token) return;
 
-    const interval = setInterval(() => {
-      if (isOnline && document.visibilityState === 'visible') {
+    // Limpar timeout anterior
+    if (refreshTimeoutRef.current !== null) {
+      window.clearTimeout(refreshTimeoutRef.current);
+    }
+
+    // Configurar novo auto-refresh
+    refreshTimeoutRef.current = window.setTimeout(() => {
+      if (isOnline && document.visibilityState === 'visible' && !isRefreshingRef.current) {
         handleRefresh();
       }
-    }, 5 * 60 * 1000);
+    }, 5 * 60 * 1000); // 5 minutos
 
-    return () => clearInterval(interval);
+    return () => {
+      if (refreshTimeoutRef.current !== null) {
+        window.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
   }, [token, handleRefresh, isOnline]);
 
+  // Online/Offline handlers
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -185,6 +198,7 @@ export const useAppController = (): AppState => {
     };
   }, [notificationManager]);
 
+  // Error handling
   useEffect(() => {
     if (error) {
       notificationManager.addNotification({
@@ -202,6 +216,7 @@ export const useAppController = (): AppState => {
     }
   }, [error, clearAllErrors, handleRefresh, notificationManager]);
 
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey) {
