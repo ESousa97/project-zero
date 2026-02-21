@@ -23,6 +23,98 @@ interface HeaderProps {
   isOnline: boolean;
 }
 
+interface NotificationsDropdownProps {
+  darkMode: boolean;
+  notifications: Notification[];
+  onMarkNotificationAsRead: (id: string) => void;
+  onClearAllNotifications: () => void;
+}
+
+const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
+  darkMode,
+  notifications,
+  onMarkNotificationAsRead,
+  onClearAllNotifications,
+}) => {
+  return (
+    <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-xl border z-50 ${
+      darkMode
+        ? 'bg-slate-800 border-slate-700'
+        : 'bg-white border-gray-200'
+    }`}>
+      <div className="p-4 border-b border-slate-700">
+        <div className="flex items-center justify-between">
+          <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Notificações
+          </h3>
+          {notifications.length > 0 && (
+            <button
+              onClick={onClearAllNotifications}
+              className={`text-sm ${
+                darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'
+              } transition-colors`}
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="max-h-96 overflow-y-auto">
+        {notifications.length === 0 ? (
+          <div className="p-4 text-center">
+            <Bell className={`w-8 h-8 mx-auto mb-2 ${
+              darkMode ? 'text-slate-600' : 'text-gray-400'
+            }`} />
+            <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>
+              Nenhuma notificação
+            </p>
+          </div>
+        ) : (
+          notifications.map(notification => (
+            <div
+              key={notification.id}
+              className={`p-4 border-b transition-all duration-200 ${
+                darkMode ? 'border-slate-700 hover:bg-slate-700/30' : 'border-gray-200 hover:bg-gray-50'
+              } ${!notification.read ? (darkMode ? 'bg-blue-900/20' : 'bg-blue-50') : ''}`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {notification.title}
+                  </p>
+                  <p className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>
+                    {notification.message}
+                  </p>
+                  <p className={`text-xs mt-2 ${darkMode ? 'text-slate-500' : 'text-gray-500'}`}>
+                    {notification.timestamp.toLocaleTimeString('pt-BR')}
+                  </p>
+                </div>
+                {!notification.read && (
+                  <button
+                    onClick={() => onMarkNotificationAsRead(notification.id)}
+                    className="w-4 h-4 bg-blue-500 rounded-full ml-2 flex-shrink-0"
+                    aria-label="Marcar como lida"
+                    title="Marcar como lida"
+                  />
+                )}
+              </div>
+              {notification.action && (
+                <button
+                  onClick={notification.action.onClick}
+                  className="mt-2 text-sm px-3 py-1 rounded transition-colors bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {notification.action.label}
+                </button>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 const Header: React.FC<HeaderProps> = ({
   darkMode,
   onToggleDarkMode,
@@ -38,13 +130,15 @@ const Header: React.FC<HeaderProps> = ({
   const { user, loading } = useGitHub();
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const headerThemeClass = darkMode
+    ? 'bg-slate-800/95 border-slate-700'
+    : 'bg-white/95 border-gray-200';
+  const iconButtonClass = darkMode
+    ? 'text-slate-400 hover:text-white hover:bg-slate-700'
+    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100';
 
   return (
-    <header className={`sticky top-0 z-50 border-b transition-all duration-300 ${
-      darkMode 
-        ? 'bg-slate-800/95 border-slate-700' 
-        : 'bg-white/95 border-gray-200'
-    } backdrop-blur-sm`}>
+    <header className={`sticky top-0 z-50 border-b transition-all duration-300 ${headerThemeClass} backdrop-blur-sm`}>
       <div className="px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo and Title */}
@@ -96,11 +190,7 @@ const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onRefresh}
               disabled={loading}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                darkMode 
-                  ? 'text-slate-400 hover:text-white hover:bg-slate-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`p-2 rounded-lg transition-all duration-200 ${iconButtonClass}`}
               title="Atualizar dados (Ctrl+R)"
               aria-label="Atualizar dados"
             >
@@ -110,11 +200,7 @@ const Header: React.FC<HeaderProps> = ({
             {/* Theme Toggle */}
             <button
               onClick={onToggleDarkMode}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                darkMode 
-                  ? 'text-slate-400 hover:text-white hover:bg-slate-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`p-2 rounded-lg transition-all duration-200 ${iconButtonClass}`}
               title="Alternar tema"
               aria-label="Alternar tema"
             >
@@ -125,11 +211,7 @@ const Header: React.FC<HeaderProps> = ({
             <div className="relative">
               <button
                 onClick={onToggleNotifications}
-                className={`relative p-2 rounded-lg transition-all duration-200 ${
-                  darkMode 
-                    ? 'text-slate-400 hover:text-white hover:bg-slate-700' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
+                className={`relative p-2 rounded-lg transition-all duration-200 ${iconButtonClass}`}
                 title="Notificações"
                 aria-label={`Notificações${unreadCount > 0 ? ` (${unreadCount} não lidas)` : ''}`}
               >
@@ -143,85 +225,12 @@ const Header: React.FC<HeaderProps> = ({
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-xl border z-50 ${
-                  darkMode 
-                    ? 'bg-slate-800 border-slate-700' 
-                    : 'bg-white border-gray-200'
-                }`}>
-                  <div className="p-4 border-b border-slate-700">
-                    <div className="flex items-center justify-between">
-                      <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        Notificações
-                      </h3>
-                      {notifications.length > 0 && (
-                        <button
-                          onClick={onClearAllNotifications}
-                          className={`text-sm ${
-                            darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'
-                          } transition-colors`}
-                        >
-                          Limpar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="max-h-96 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <div className="p-4 text-center">
-                        <Bell className={`w-8 h-8 mx-auto mb-2 ${
-                          darkMode ? 'text-slate-600' : 'text-gray-400'
-                        }`} />
-                        <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>
-                          Nenhuma notificação
-                        </p>
-                      </div>
-                    ) : (
-                      notifications.map(notification => (
-                        <div
-                          key={notification.id}
-                          className={`p-4 border-b transition-all duration-200 ${
-                            darkMode ? 'border-slate-700 hover:bg-slate-700/30' : 'border-gray-200 hover:bg-gray-50'
-                          } ${!notification.read ? (darkMode ? 'bg-blue-900/20' : 'bg-blue-50') : ''}`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                                {notification.title}
-                              </p>
-                              <p className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>
-                                {notification.message}
-                              </p>
-                              <p className={`text-xs mt-2 ${darkMode ? 'text-slate-500' : 'text-gray-500'}`}>
-                                {notification.timestamp.toLocaleTimeString('pt-BR')}
-                              </p>
-                            </div>
-                            {!notification.read && (
-                              <button
-                                onClick={() => onMarkNotificationAsRead(notification.id)}
-                                className="w-4 h-4 bg-blue-500 rounded-full ml-2 flex-shrink-0"
-                                aria-label="Marcar como lida"
-                                title="Marcar como lida"
-                              />
-                            )}
-                          </div>
-                          {notification.action && (
-                            <button
-                              onClick={notification.action.onClick}
-                              className={`mt-2 text-sm px-3 py-1 rounded transition-colors ${
-                                darkMode 
-                                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-                              }`}
-                            >
-                              {notification.action.label}
-                            </button>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
+                <NotificationsDropdown
+                  darkMode={darkMode}
+                  notifications={notifications}
+                  onMarkNotificationAsRead={onMarkNotificationAsRead}
+                  onClearAllNotifications={onClearAllNotifications}
+                />
               )}
             </div>
 

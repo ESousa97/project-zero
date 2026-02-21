@@ -28,6 +28,33 @@ interface SettingsData {
   exportedAt?: string;
 }
 
+const defaultSettings: SettingsData = {
+  darkMode: true,
+  notifications: true,
+  autoRefresh: false,
+  refreshInterval: 5,
+};
+
+const loadInitialSettings = (): SettingsData => {
+  const savedSettings = localStorage.getItem('app_settings');
+  if (!savedSettings) {
+    return defaultSettings;
+  }
+
+  try {
+    const parsedSettings = JSON.parse(savedSettings) as Partial<SettingsData>;
+    return {
+      darkMode: parsedSettings.darkMode ?? defaultSettings.darkMode,
+      notifications: parsedSettings.notifications ?? defaultSettings.notifications,
+      autoRefresh: parsedSettings.autoRefresh ?? defaultSettings.autoRefresh,
+      refreshInterval: parsedSettings.refreshInterval ?? defaultSettings.refreshInterval,
+    };
+  } catch (error) {
+    console.error('Erro ao carregar configurações:', error);
+    return defaultSettings;
+  }
+};
+
 const Settings: React.FC = () => {
   // Contexto GitHub para manipular token e erros
   const { token, setToken, clearError } = useGitHub();
@@ -35,27 +62,12 @@ const Settings: React.FC = () => {
   // Estados locais para configurações e UI
   const [newToken, setNewToken] = useState(token);
   const [showToken, setShowToken] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
-  const [notifications, setNotifications] = useState(true);
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [refreshInterval, setRefreshInterval] = useState(5);
+  const [initialSettings] = useState<SettingsData>(() => loadInitialSettings());
+  const [darkMode, setDarkMode] = useState(initialSettings.darkMode);
+  const [notifications, setNotifications] = useState(initialSettings.notifications);
+  const [autoRefresh, setAutoRefresh] = useState(initialSettings.autoRefresh);
+  const [refreshInterval, setRefreshInterval] = useState(initialSettings.refreshInterval);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-
-  // Carregar configurações salvas do localStorage no carregamento do componente
-  useEffect(() => {
-    const savedSettings = localStorage.getItem('app_settings');
-    if (savedSettings) {
-      try {
-        const settings: SettingsData = JSON.parse(savedSettings);
-        setDarkMode(settings.darkMode ?? true);
-        setNotifications(settings.notifications ?? true);
-        setAutoRefresh(settings.autoRefresh ?? false);
-        setRefreshInterval(settings.refreshInterval ?? 5);
-      } catch (error) {
-        console.error('Erro ao carregar configurações:', error);
-      }
-    }
-  }, []);
 
   // Salvar configurações no localStorage com debounce de 1 segundo para evitar gravações excessivas
   useEffect(() => {

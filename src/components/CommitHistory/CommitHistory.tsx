@@ -17,6 +17,170 @@ import { useCommitAnalytics } from './hooks/useCommitAnalytics';
 import type { ViewMode } from './types';
 import { getTimeFilterLabel } from './types';
 
+interface CommitMainContentProps {
+  isCurrentlyLoading: boolean;
+  currentCommitsLength: number;
+  selectedRepo: string;
+  allReposCommitsLength: number;
+  totalFilteredCount: number;
+  viewMode: ViewMode;
+  analyticsTotalCommits: number;
+  timeFilter: string;
+  limitedCommitsForList: Parameters<typeof CommitTimeline>[0]['commits'];
+  analytics: Parameters<typeof CommitAnalytics>[0]['analytics'];
+  allReposCommits: Parameters<typeof CommitList>[0]['allReposCommits'];
+  selectedBranch: string;
+  isFiltered: boolean;
+  onResetFilters: () => void;
+}
+
+const CommitMainContent: React.FC<CommitMainContentProps> = ({
+  isCurrentlyLoading,
+  currentCommitsLength,
+  selectedRepo,
+  allReposCommitsLength,
+  totalFilteredCount,
+  viewMode,
+  analyticsTotalCommits,
+  timeFilter,
+  limitedCommitsForList,
+  analytics,
+  allReposCommits,
+  selectedBranch,
+  isFiltered,
+  onResetFilters,
+}) => {
+  if (isCurrentlyLoading && currentCommitsLength === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-6">
+        <div className="relative">
+          <div className="w-12 h-12 border-3 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+          <GitCommit className="w-6 h-6 text-blue-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+        </div>
+        <h3 className="text-lg font-semibold text-white mt-4 mb-2">
+          {selectedRepo === 'all'
+            ? 'Coletando histórico completo de commits'
+            : 'Carregando commits do repositório'
+          }
+        </h3>
+        <p className="text-slate-400 text-center max-w-md">
+          {selectedRepo === 'all'
+            ? 'Processando todos os repositórios. A busca continuará até coletar 100% dos commits disponíveis.'
+            : 'Aguarde enquanto carregamos o histórico de commits...'
+          }
+        </p>
+        {selectedRepo === 'all' && allReposCommitsLength > 0 && (
+          <div className="mt-4 text-center">
+            <p className="text-blue-400 font-medium">
+              {allReposCommitsLength.toLocaleString()} commits coletados...
+            </p>
+            <p className="text-slate-500 text-sm">
+              Busca em andamento
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (totalFilteredCount > 0) {
+    return (
+      <div className="p-6">
+        {viewMode === 'timeline' ? (
+          <CommitTimeline commits={limitedCommitsForList} />
+        ) : viewMode === 'analytics' ? (
+          <div className="space-y-6">
+            <div className="text-center py-4">
+              <BarChart3 className="w-12 h-12 text-blue-500 mx-auto mb-3" />
+              <h3 className="text-xl font-semibold text-white mb-2">
+                Visualização Analytics Detalhada
+              </h3>
+              <p className="text-slate-400 mb-4">
+                Métricas avançadas de {analyticsTotalCommits} commits filtrados
+              </p>
+              {timeFilter !== 'all' && (
+                <p className="text-blue-400 text-sm">
+                  Período: {getTimeFilterLabel(timeFilter as never)}
+                </p>
+              )}
+            </div>
+            <CommitAnalytics analytics={analytics} />
+          </div>
+        ) : (
+          <CommitList
+            commits={limitedCommitsForList}
+            selectedRepo={selectedRepo}
+            selectedBranch={selectedBranch}
+            allReposCommits={allReposCommits}
+            totalFilteredCount={totalFilteredCount}
+            isFiltered={isFiltered}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (selectedRepo) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-6">
+        <GitCommit className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-slate-400 mb-2">
+          Nenhum commit encontrado
+        </h3>
+        <p className="text-slate-500 text-center mb-6">
+          {isFiltered ? 'Nenhum commit corresponde aos filtros aplicados' :
+            selectedRepo === 'all' ? 'Nenhum commit foi encontrado nos repositórios selecionados' :
+            'Este repositório não possui commits no branch selecionado'}
+        </p>
+        {isFiltered && (
+          <button
+            onClick={onResetFilters}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+          >
+            Limpar Filtros
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-6">
+      <GitCommit className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+      <h3 className="text-xl font-semibold text-slate-400 mb-2">
+        Selecione um repositório
+      </h3>
+      <p className="text-slate-500 text-center mb-8">
+        Escolha um repositório para visualizar o histórico detalhado de commits
+      </p>
+      <div className="bg-slate-700/30 rounded-lg p-6 max-w-md">
+        <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+          <Activity className="w-4 h-4" />
+          Novos recursos:
+        </h4>
+        <ul className="text-sm text-slate-400 space-y-2">
+          <li className="flex items-start gap-2">
+            <Clock className="w-3 h-3 mt-1" />
+            Filtros de tempo precisos: segundos até anos
+          </li>
+          <li className="flex items-start gap-2">
+            <BarChart3 className="w-3 h-3 mt-1" />
+            Analytics completos dos dados filtrados
+          </li>
+          <li className="flex items-start gap-2">
+            <List className="w-3 h-3 mt-1" />
+            Lista otimizada com 10 commits mais relevantes
+          </li>
+          <li className="flex items-start gap-2">
+            <Search className="w-3 h-3 mt-1" />
+            Busca avançada por autor, SHA e conteúdo
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
 const CommitHistory: React.FC = () => {
   const { repositories, loading, fetchCommits } = useGitHub();
   
@@ -508,127 +672,22 @@ const CommitHistory: React.FC = () => {
 
       {/* Conteúdo Principal */}
       <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50">
-        {isCurrentlyLoading && currentCommits.length === 0 ? (
-          // Estado de Loading
-          <div className="flex flex-col items-center justify-center py-16 px-6">
-            <div className="relative">
-              <div className="w-12 h-12 border-3 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-              <GitCommit className="w-6 h-6 text-blue-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
-            </div>
-            <h3 className="text-lg font-semibold text-white mt-4 mb-2">
-              {filters.selectedRepo === 'all' 
-                ? 'Coletando histórico completo de commits' 
-                : 'Carregando commits do repositório'
-              }
-            </h3>
-            <p className="text-slate-400 text-center max-w-md">
-              {filters.selectedRepo === 'all'
-                ? 'Processando todos os repositórios. A busca continuará até coletar 100% dos commits disponíveis.'
-                : 'Aguarde enquanto carregamos o histórico de commits...'
-              }
-            </p>
-            {filters.selectedRepo === 'all' && allReposCommits.length > 0 && (
-              <div className="mt-4 text-center">
-                <p className="text-blue-400 font-medium">
-                  {allReposCommits.length.toLocaleString()} commits coletados...
-                </p>
-                <p className="text-slate-500 text-sm">
-                  Busca em andamento
-                </p>
-              </div>
-            )}
-          </div>
-        ) : totalFilteredCount > 0 ? (
-          // Conteúdo com base no modo de visualização
-          <div className="p-6">
-            {viewMode === 'timeline' ? (
-              <CommitTimeline commits={limitedCommitsForList} />
-            ) : viewMode === 'analytics' ? (
-              <div className="space-y-6">
-                <div className="text-center py-4">
-                  <BarChart3 className="w-12 h-12 text-blue-500 mx-auto mb-3" />
-                  <h3 className="text-xl font-semibold text-white mb-2">
-                    Visualização Analytics Detalhada
-                  </h3>
-                  <p className="text-slate-400 mb-4">
-                    Métricas avançadas de {analytics.totalCommits} commits filtrados
-                  </p>
-                  {filters.timeFilter !== 'all' && (
-                    <p className="text-blue-400 text-sm">
-                      Período: {getTimeFilterLabel(filters.timeFilter)}
-                    </p>
-                  )}
-                </div>
-                <CommitAnalytics analytics={analytics} />
-              </div>
-            ) : (
-              <CommitList
-                commits={limitedCommitsForList}
-                selectedRepo={filters.selectedRepo}
-                selectedBranch={filters.selectedBranch}
-                allReposCommits={allReposCommits}
-                totalFilteredCount={totalFilteredCount}
-                isFiltered={isFiltered}
-              />
-            )}
-          </div>
-        ) : filters.selectedRepo ? (
-          // Estado de nenhum commit encontrado
-          <div className="flex flex-col items-center justify-center py-16 px-6">
-            <GitCommit className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-400 mb-2">
-              Nenhum commit encontrado
-            </h3>
-            <p className="text-slate-500 text-center mb-6">
-              {isFiltered ? 'Nenhum commit corresponde aos filtros aplicados' : 
-               filters.selectedRepo === 'all' ? 'Nenhum commit foi encontrado nos repositórios selecionados' :
-               'Este repositório não possui commits no branch selecionado'}
-            </p>
-            {isFiltered && (
-              <button
-                onClick={resetFilters}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
-              >
-                Limpar Filtros
-              </button>
-            )}
-          </div>
-        ) : (
-          // Estado inicial - selecione um repositório
-          <div className="flex flex-col items-center justify-center py-16 px-6">
-            <GitCommit className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-400 mb-2">
-              Selecione um repositório
-            </h3>
-            <p className="text-slate-500 text-center mb-8">
-              Escolha um repositório para visualizar o histórico detalhado de commits
-            </p>
-            <div className="bg-slate-700/30 rounded-lg p-6 max-w-md">
-              <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
-                <Activity className="w-4 h-4" />
-                Novos recursos:
-              </h4>
-              <ul className="text-sm text-slate-400 space-y-2">
-                <li className="flex items-start gap-2">
-                  <Clock className="w-3 h-3 mt-1" />
-                  Filtros de tempo precisos: segundos até anos
-                </li>
-                <li className="flex items-start gap-2">
-                  <BarChart3 className="w-3 h-3 mt-1" />
-                  Analytics completos dos dados filtrados
-                </li>
-                <li className="flex items-start gap-2">
-                  <List className="w-3 h-3 mt-1" />
-                  Lista otimizada com 10 commits mais relevantes
-                </li>
-                <li className="flex items-start gap-2">
-                  <Search className="w-3 h-3 mt-1" />
-                  Busca avançada por autor, SHA e conteúdo
-                </li>
-              </ul>
-            </div>
-          </div>
-        )}
+        <CommitMainContent
+          isCurrentlyLoading={isCurrentlyLoading}
+          currentCommitsLength={currentCommits.length}
+          selectedRepo={filters.selectedRepo}
+          allReposCommitsLength={allReposCommits.length}
+          totalFilteredCount={totalFilteredCount}
+          viewMode={viewMode}
+          analyticsTotalCommits={analytics.totalCommits}
+          timeFilter={filters.timeFilter}
+          limitedCommitsForList={limitedCommitsForList}
+          analytics={analytics}
+          allReposCommits={allReposCommits}
+          selectedBranch={filters.selectedBranch}
+          isFiltered={isFiltered}
+          onResetFilters={resetFilters}
+        />
       </div>
 
       {/* Nota final sobre dados coletados - SIMPLIFICADA */}

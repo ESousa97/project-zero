@@ -15,6 +15,86 @@ interface CommitFiltersProps {
   onResetFilters: () => void;
 }
 
+const timeFilterGroups: Array<{ label: string; options: Array<{ value: TimeFilter; label: string }> }> = [
+  {
+    label: 'Tempo Real',
+    options: [
+      { value: 'seconds-30', label: 'Últimos 30 segundos' },
+      { value: 'seconds-60', label: 'Último minuto' },
+    ]
+  },
+  {
+    label: 'Minutos',
+    options: [
+      { value: 'minutes-5', label: '5 minutos' },
+      { value: 'minutes-15', label: '15 minutos' },
+      { value: 'minutes-30', label: '30 minutos' },
+      { value: 'minutes-60', label: '1 hora' },
+    ]
+  },
+  {
+    label: 'Horas',
+    options: [
+      { value: 'hours-1', label: '1 hora' },
+      { value: 'hours-6', label: '6 horas' },
+      { value: 'hours-12', label: '12 horas' },
+      { value: 'hours-24', label: '1 dia' },
+    ]
+  },
+  {
+    label: 'Dias',
+    options: [
+      { value: 'days-1', label: '1 dia' },
+      { value: 'days-3', label: '3 dias' },
+      { value: 'days-7', label: '1 semana' },
+    ]
+  },
+  {
+    label: 'Semanas/Meses',
+    options: [
+      { value: 'weeks-1', label: '1 semana' },
+      { value: 'weeks-2', label: '2 semanas' },
+      { value: 'weeks-4', label: '1 mês' },
+      { value: 'months-1', label: '1 mês' },
+      { value: 'months-2', label: '2 meses' },
+      { value: 'months-3', label: '3 meses' },
+      { value: 'months-6', label: '6 meses' },
+    ]
+  },
+  {
+    label: 'Anos',
+    options: [
+      { value: 'years-1', label: '1 ano' },
+      { value: 'years-2', label: '2 anos' },
+    ]
+  }
+];
+
+const activeFilterCount = (filters: CommitFiltersState) => {
+  return [
+    filters.searchTerm,
+    filters.selectedAuthor !== 'all' ? filters.selectedAuthor : null,
+    filters.timeFilter !== 'all' ? filters.timeFilter : null,
+    filters.sortBy !== 'date' ? filters.sortBy : null
+  ].filter(Boolean).length;
+};
+
+const FilterChip: React.FC<{ className: string; onClear: () => void; children: React.ReactNode }> = ({
+  className,
+  onClear,
+  children,
+}) => (
+  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${className}`}>
+    {children}
+    <button
+      onClick={onClear}
+      className="ml-1 rounded-full p-0.5 transition-colors"
+    >
+      ×
+    </button>
+  </span>
+);
+
 const CommitFilters: React.FC<CommitFiltersProps> = ({
   filters,
   uniqueAuthors,
@@ -25,68 +105,7 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
   onToggleAnalytics,
   onResetFilters
 }) => {
-  // Grupos de filtros de tempo organizados
-  const timeFilterGroups = [
-    {
-      label: 'Tempo Real',
-      options: [
-        { value: 'seconds-30' as TimeFilter, label: 'Últimos 30 segundos' },
-        { value: 'seconds-60' as TimeFilter, label: 'Último minuto' },
-      ]
-    },
-    {
-      label: 'Minutos',
-      options: [
-        { value: 'minutes-5' as TimeFilter, label: '5 minutos' },
-        { value: 'minutes-15' as TimeFilter, label: '15 minutos' },
-        { value: 'minutes-30' as TimeFilter, label: '30 minutos' },
-        { value: 'minutes-60' as TimeFilter, label: '1 hora' },
-      ]
-    },
-    {
-      label: 'Horas',
-      options: [
-        { value: 'hours-1' as TimeFilter, label: '1 hora' },
-        { value: 'hours-6' as TimeFilter, label: '6 horas' },
-        { value: 'hours-12' as TimeFilter, label: '12 horas' },
-        { value: 'hours-24' as TimeFilter, label: '1 dia' },
-      ]
-    },
-    {
-      label: 'Dias',
-      options: [
-        { value: 'days-1' as TimeFilter, label: '1 dia' },
-        { value: 'days-3' as TimeFilter, label: '3 dias' },
-        { value: 'days-7' as TimeFilter, label: '1 semana' },
-      ]
-    },
-    {
-      label: 'Semanas/Meses',
-      options: [
-        { value: 'weeks-1' as TimeFilter, label: '1 semana' },
-        { value: 'weeks-2' as TimeFilter, label: '2 semanas' },
-        { value: 'weeks-4' as TimeFilter, label: '1 mês' },
-        { value: 'months-1' as TimeFilter, label: '1 mês' },
-        { value: 'months-2' as TimeFilter, label: '2 meses' },
-        { value: 'months-3' as TimeFilter, label: '3 meses' },
-        { value: 'months-6' as TimeFilter, label: '6 meses' },
-      ]
-    },
-    {
-      label: 'Anos',
-      options: [
-        { value: 'years-1' as TimeFilter, label: '1 ano' },
-        { value: 'years-2' as TimeFilter, label: '2 anos' },
-      ]
-    }
-  ];
-
-  const activeFilterCount = [
-    filters.searchTerm,
-    filters.selectedAuthor !== 'all' ? filters.selectedAuthor : null,
-    filters.timeFilter !== 'all' ? filters.timeFilter : null,
-    filters.sortBy !== 'date' ? filters.sortBy : null
-  ].filter(Boolean).length;
+  const currentActiveFilterCount = activeFilterCount(filters);
 
   return (
     <div className="p-6">
@@ -95,9 +114,9 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
         <div className="flex items-center gap-3">
           <Filter className="w-5 h-5 text-blue-400" />
           <h3 className="text-lg font-semibold text-white">Filtros Avançados de Tempo</h3>
-          {activeFilterCount > 0 && (
+          {currentActiveFilterCount > 0 && (
             <span className="bg-blue-600/20 text-blue-400 px-2 py-1 rounded-full text-xs font-medium">
-              {activeFilterCount} filtro{activeFilterCount > 1 ? 's' : ''} ativo{activeFilterCount > 1 ? 's' : ''}
+              {currentActiveFilterCount} filtro{currentActiveFilterCount > 1 ? 's' : ''} ativo{currentActiveFilterCount > 1 ? 's' : ''}
             </span>
           )}
           {totalFilteredCount > 0 && (
@@ -241,55 +260,43 @@ const CommitFilters: React.FC<CommitFiltersProps> = ({
             <span className="text-sm font-medium text-slate-300">Filtros ativos:</span>
             
             {filters.searchTerm && (
-              <span className="inline-flex items-center gap-1 bg-blue-600/20 text-blue-400 px-3 py-1 rounded-full text-xs font-medium">
+              <FilterChip
+                className="bg-blue-600/20 text-blue-400"
+                onClear={() => onUpdateFilter('searchTerm', '')}
+              >
                 <Search className="w-3 h-3" />
                 Busca: "{filters.searchTerm}"
-                <button
-                  onClick={() => onUpdateFilter('searchTerm', '')}
-                  className="ml-1 hover:bg-blue-600/30 rounded-full p-0.5 transition-colors"
-                >
-                  ×
-                </button>
-              </span>
+              </FilterChip>
             )}
             
             {filters.selectedAuthor !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-green-600/20 text-green-400 px-3 py-1 rounded-full text-xs font-medium">
+              <FilterChip
+                className="bg-green-600/20 text-green-400"
+                onClear={() => onUpdateFilter('selectedAuthor', 'all')}
+              >
                 <Users className="w-3 h-3" />
                 Autor: {filters.selectedAuthor}
-                <button
-                  onClick={() => onUpdateFilter('selectedAuthor', 'all')}
-                  className="ml-1 hover:bg-green-600/30 rounded-full p-0.5 transition-colors"
-                >
-                  ×
-                </button>
-              </span>
+              </FilterChip>
             )}
             
             {filters.timeFilter !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-purple-600/20 text-purple-400 px-3 py-1 rounded-full text-xs font-medium">
+              <FilterChip
+                className="bg-purple-600/20 text-purple-400"
+                onClear={() => onUpdateFilter('timeFilter', 'all')}
+              >
                 <Clock className="w-3 h-3" />
                 {getTimeFilterLabel(filters.timeFilter)}
-                <button
-                  onClick={() => onUpdateFilter('timeFilter', 'all')}
-                  className="ml-1 hover:bg-purple-600/30 rounded-full p-0.5 transition-colors"
-                >
-                  ×
-                </button>
-              </span>
+              </FilterChip>
             )}
             
             {filters.sortBy !== 'date' && (
-              <span className="inline-flex items-center gap-1 bg-orange-600/20 text-orange-400 px-3 py-1 rounded-full text-xs font-medium">
+              <FilterChip
+                className="bg-orange-600/20 text-orange-400"
+                onClear={() => onUpdateFilter('sortBy', 'date')}
+              >
                 <SortAsc className="w-3 h-3" />
                 Ordem: {filters.sortBy}
-                <button
-                  onClick={() => onUpdateFilter('sortBy', 'date')}
-                  className="ml-1 hover:bg-orange-600/30 rounded-full p-0.5 transition-colors"
-                >
-                  ×
-                </button>
-              </span>
+              </FilterChip>
             )}
           </div>
         </div>

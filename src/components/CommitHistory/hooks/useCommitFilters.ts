@@ -14,6 +14,42 @@ const initialFilters: CommitFiltersState = {
   selectedBranch: 'main'
 };
 
+const resolveCommitType = (message: string): CommitType => {
+  const lowerMessage = message.toLowerCase();
+  if (lowerMessage.startsWith('feat')) return 'feat';
+  if (lowerMessage.startsWith('fix')) return 'fix';
+  if (lowerMessage.startsWith('docs')) return 'docs';
+  if (lowerMessage.startsWith('style')) return 'style';
+  if (lowerMessage.startsWith('refactor')) return 'refactor';
+  if (lowerMessage.startsWith('test')) return 'test';
+  if (lowerMessage.startsWith('chore')) return 'chore';
+  return 'other';
+};
+
+const normalizeCommitData = (commit: Commit) => {
+  const normalizedCommitAuthor = {
+    name: commit.commit.author?.name || 'Unknown',
+    email: commit.commit.author?.email || 'unknown@email.com',
+    date: commit.commit.author?.date || new Date(0).toISOString()
+  };
+
+  const normalizedCommitCommitter = {
+    name: commit.commit.committer?.name || normalizedCommitAuthor.name,
+    email: commit.commit.committer?.email || normalizedCommitAuthor.email,
+    date: commit.commit.committer?.date || normalizedCommitAuthor.date
+  };
+
+  return {
+    normalizedCommitAuthor,
+    normalizedCommitCommitter
+  };
+};
+
+const safeCommitTimestamp = (commitDate: string): number => {
+  const timestamp = new Date(commitDate).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
 /**
  * Hook para gerenciar filtros e processamento dos commits
  * @param commits Array de commits crus do GitHub
@@ -21,6 +57,12 @@ const initialFilters: CommitFiltersState = {
  */
 export const useCommitFilters = (commits: Commit[]) => {
   const [filters, setFilters] = useState<CommitFiltersState>(initialFilters);
+
+  const referenceTimestamp = useMemo(() => {
+    return commits.reduce((latest, commit) => {
+      return Math.max(latest, safeCommitTimestamp(commit.commit.author.date));
+    }, 0);
+  }, [commits]);
 
   /**
    * Processa commits com informações estendidas e categorização
@@ -33,31 +75,8 @@ export const useCommitFilters = (commits: Commit[]) => {
     return commits.map(commit => {
       const message = commit.commit.message;
       const date = new Date(commit.commit.author.date);
-
-      // Determina o tipo de commit pela mensagem
-      let commitType: CommitType = 'other';
-      const lowerMessage = message.toLowerCase();
-      if (lowerMessage.startsWith('feat')) commitType = 'feat';
-      else if (lowerMessage.startsWith('fix')) commitType = 'fix';
-      else if (lowerMessage.startsWith('docs')) commitType = 'docs';
-      else if (lowerMessage.startsWith('style')) commitType = 'style';
-      else if (lowerMessage.startsWith('refactor')) commitType = 'refactor';
-      else if (lowerMessage.startsWith('test')) commitType = 'test';
-      else if (lowerMessage.startsWith('chore')) commitType = 'chore';
-
-      // Normaliza autor do commit (sempre definido)
-      const normalizedCommitAuthor = {
-        name: commit.commit.author?.name || 'Unknown',
-        email: commit.commit.author?.email || 'unknown@email.com',
-        date: commit.commit.author?.date || new Date().toISOString()
-      };
-
-      // Normaliza committer do commit (sempre definido)
-      const normalizedCommitCommitter = {
-        name: commit.commit.committer?.name || normalizedCommitAuthor.name,
-        email: commit.commit.committer?.email || normalizedCommitAuthor.email,
-        date: commit.commit.committer?.date || normalizedCommitAuthor.date
-      };
+      const commitType = resolveCommitType(message);
+      const { normalizedCommitAuthor, normalizedCommitCommitter } = normalizeCommitData(commit);
 
       return {
         ...commit,
@@ -114,8 +133,7 @@ export const useCommitFilters = (commits: Commit[]) => {
       const filterMilliseconds = getTimeFilterMilliseconds(filters.timeFilter);
 
       if (filterMilliseconds) {
-        const now = Date.now();
-        const cutoffTime = now - filterMilliseconds;
+        const cutoffTime = referenceTimestamp - filterMilliseconds;
 
         filtered = filtered.filter(commit => {
           try {
@@ -148,7 +166,7 @@ export const useCommitFilters = (commits: Commit[]) => {
     });
 
     return filtered;
-  }, [extendedCommits, filters, commits.length]);
+  }, [extendedCommits, filters, commits.length, referenceTimestamp]);
 
   // Lista limitada para exibição (top 10)
   const limitedCommitsForList = useMemo(() => {
