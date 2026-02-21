@@ -10,6 +10,7 @@ import {
   ScatterChart, Scatter
 } from 'recharts';
 import { useGitHub } from '../context/GitHubContext';
+import { CHART_COLORS, CHART_SURFACE_COLORS, DEFAULT_TOOLTIP_STYLE } from '../constants/chartTheme';
 
 interface LanguageContribution {
   language: string;
@@ -124,7 +125,6 @@ const UserProfile: React.FC = () => {
       }
     });
 
-    const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'];
     const totalRepos = repositories.length;
 
     return Array.from(langMap.entries())
@@ -134,7 +134,7 @@ const UserProfile: React.FC = () => {
         stars: data.stars,
         commits: data.commits,
         percentage: (data.repos / totalRepos) * 100,
-        color: colors[index % colors.length],
+        color: CHART_COLORS[index % CHART_COLORS.length],
       }))
       .sort((a, b) => b.repos - a.repos)
       .slice(0, 8);
@@ -574,16 +574,10 @@ const UserProfile: React.FC = () => {
           </h3>
           <ResponsiveContainer width="100%" height={250}>
             <AreaChart data={activityData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="month" stroke="#9CA3AF" fontSize={12} />
-              <YAxis stroke="#9CA3AF" fontSize={12} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1F2937', 
-                  border: '1px solid #374151',
-                  borderRadius: '8px'
-                }}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_SURFACE_COLORS.grid} />
+              <XAxis dataKey="month" stroke={CHART_SURFACE_COLORS.axis} fontSize={12} />
+              <YAxis stroke={CHART_SURFACE_COLORS.axis} fontSize={12} />
+              <Tooltip contentStyle={DEFAULT_TOOLTIP_STYLE} />
               <Area type="monotone" dataKey="commits" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} />
               <Area type="monotone" dataKey="repos" stackId="2" stroke="#10B981" fill="#10B981" fillOpacity={0.6} />
               <Area type="monotone" dataKey="prs" stackId="3" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.6} />
@@ -605,19 +599,19 @@ const UserProfile: React.FC = () => {
               size: repo.size / 1024,
               age: Math.floor((Date.now() - new Date(repo.created_at).getTime()) / (1000 * 60 * 60 * 24))
             }))}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_SURFACE_COLORS.grid} />
               <XAxis 
                 type="number" 
                 dataKey="stars" 
                 name="Stars" 
-                stroke="#9CA3AF"
+                stroke={CHART_SURFACE_COLORS.axis}
                 label={{ value: 'Stars', position: 'insideBottom', offset: -5 }}
               />
               <YAxis 
                 type="number" 
                 dataKey="forks" 
                 name="Forks" 
-                stroke="#9CA3AF"
+                stroke={CHART_SURFACE_COLORS.axis}
                 label={{ value: 'Forks', angle: -90, position: 'insideLeft' }}
               />
               <Tooltip 

@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose an enhancement
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Arquivado
+        Este repositório está arquivado e permanece público apenas para fins de estudo.
+        Não há garantia de resposta, triagem, revisão ou implementação.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      placeholder: What should be added?
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What user problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Functional and UX details
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

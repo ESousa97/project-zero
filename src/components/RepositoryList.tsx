@@ -10,6 +10,7 @@ import {
   PieChart, Pie, Cell, ScatterChart, Scatter, AreaChart, Area
 } from 'recharts';
 import { useGitHub } from '../context/GitHubContext';
+import { CHART_COLORS, CHART_SURFACE_COLORS, DEFAULT_TOOLTIP_STYLE } from '../constants/chartTheme';
 
 type SortBy = 'updated' | 'created' | 'name' | 'stars' | 'forks' | 'size' | 'issues';
 type FilterBy = 'all' | 'public' | 'private' | 'archived' | 'template';
@@ -323,8 +324,6 @@ const RepositoryList: React.FC = () => {
     );
   };
 
-  const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'];
-
   return (
     <div className="space-y-6">
       {/* Cabeçalho */}
@@ -460,7 +459,7 @@ const RepositoryList: React.FC = () => {
                   label={({ language, percentage }) => `${language} ${percentage.toFixed(1)}%`}
                 >
                   {languageMetrics.slice(0, 8).map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -476,16 +475,10 @@ const RepositoryList: React.FC = () => {
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={activityMetrics}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="date" stroke="#9CA3AF" fontSize={12} />
-                <YAxis stroke="#9CA3AF" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1F2937', 
-                    border: '1px solid #374151',
-                    borderRadius: '8px'
-                  }}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_SURFACE_COLORS.grid} />
+                <XAxis dataKey="date" stroke={CHART_SURFACE_COLORS.axis} fontSize={12} />
+                <YAxis stroke={CHART_SURFACE_COLORS.axis} fontSize={12} />
+                <Tooltip contentStyle={DEFAULT_TOOLTIP_STYLE} />
                 <Area type="monotone" dataKey="created" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} />
                 <Area type="monotone" dataKey="updated" stackId="2" stroke="#10B981" fill="#10B981" fillOpacity={0.6} />
               </AreaChart>
@@ -500,19 +493,19 @@ const RepositoryList: React.FC = () => {
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <ScatterChart data={repositoryMetrics.slice(0, 20)}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_SURFACE_COLORS.grid} />
                 <XAxis 
                   type="number" 
                   dataKey="stars" 
                   name="Stars" 
-                  stroke="#9CA3AF"
+                  stroke={CHART_SURFACE_COLORS.axis}
                   label={{ value: 'Stars', position: 'insideBottom', offset: -5 }}
                 />
                 <YAxis 
                   type="number" 
                   dataKey="health" 
                   name="Saúde" 
-                  stroke="#9CA3AF"
+                  stroke={CHART_SURFACE_COLORS.axis}
                   label={{ value: 'Saúde (%)', angle: -90, position: 'insideLeft' }}
                 />
                 <Tooltip 
@@ -546,16 +539,10 @@ const RepositoryList: React.FC = () => {
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={languageMetrics.slice(0, 6)}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="language" stroke="#9CA3AF" fontSize={12} />
-                <YAxis stroke="#9CA3AF" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1F2937', 
-                    border: '1px solid #374151',
-                    borderRadius: '8px'
-                  }}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_SURFACE_COLORS.grid} />
+                <XAxis dataKey="language" stroke={CHART_SURFACE_COLORS.axis} fontSize={12} />
+                <YAxis stroke={CHART_SURFACE_COLORS.axis} fontSize={12} />
+                <Tooltip contentStyle={DEFAULT_TOOLTIP_STYLE} />
                 <Bar dataKey="totalStars" fill="#3B82F6" name="Total Stars" />
                 <Bar dataKey="avgStars" fill="#10B981" name="Média Stars" />
               </BarChart>

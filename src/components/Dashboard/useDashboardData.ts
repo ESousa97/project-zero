@@ -161,7 +161,7 @@ export const useDashboardData = () => {
     }).length;
     
     // CORRIGIDO: Evitar sobreposição - commits reais têm prioridade ABSOLUTA
-    let commitsInPeriod = 0;
+    let commitsInPeriod: number;
     
     // Sempre verificar commits reais primeiro e usar APENAS eles se disponíveis
     if (commits && commits.length > 0) {
@@ -202,11 +202,13 @@ export const useDashboardData = () => {
             const lastUpdate = new Date(repo.updated_at);
             const daysSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
             
-            let commitsPerDay = 1;
-            if (daysSinceUpdate <= 7) commitsPerDay = 3;
-            else if (daysSinceUpdate <= 30) commitsPerDay = 2;
-            else if (daysSinceUpdate <= 90) commitsPerDay = 1;
-            else commitsPerDay = 0.5;
+            let commitsPerDay = daysSinceUpdate <= 7
+              ? 3
+              : daysSinceUpdate <= 30
+                ? 2
+                : daysSinceUpdate <= 90
+                  ? 1
+                  : 0.5;
             
             if (repo.stargazers_count > 50) commitsPerDay *= 2;
             else if (repo.stargazers_count > 10) commitsPerDay *= 1.5;

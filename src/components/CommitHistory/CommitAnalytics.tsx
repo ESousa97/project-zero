@@ -8,14 +8,13 @@ import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 import type { CommitAnalytics as CommitAnalyticsType } from './types';
+import { CHART_COLORS, CHART_SURFACE_COLORS, DEFAULT_TOOLTIP_STYLE } from '../../constants/chartTheme';
 
 interface CommitAnalyticsProps {
   analytics: CommitAnalyticsType;
 }
 
 const CommitAnalytics: React.FC<CommitAnalyticsProps> = ({ analytics }) => {
-  const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'];
-
   // Preparar dados para gráficos
   const commitTypeData = Object.entries(analytics.commitFrequency).map(([type, count]) => ({
     name: type,
@@ -81,16 +80,10 @@ const CommitAnalytics: React.FC<CommitAnalyticsProps> = ({ analytics }) => {
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={analytics.dailyActivity}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="date" stroke="#9CA3AF" fontSize={12} />
-              <YAxis stroke="#9CA3AF" fontSize={12} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1F2937', 
-                  border: '1px solid #374151',
-                  borderRadius: '8px'
-                }}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_SURFACE_COLORS.grid} />
+              <XAxis dataKey="date" stroke={CHART_SURFACE_COLORS.axis} fontSize={12} />
+              <YAxis stroke={CHART_SURFACE_COLORS.axis} fontSize={12} />
+              <Tooltip contentStyle={DEFAULT_TOOLTIP_STYLE} />
               <Area type="monotone" dataKey="commits" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} />
               <Area type="monotone" dataKey="additions" stackId="2" stroke="#10B981" fill="#10B981" fillOpacity={0.6} />
               <Area type="monotone" dataKey="deletions" stackId="3" stroke="#EF4444" fill="#EF4444" fillOpacity={0.6} />
@@ -106,16 +99,10 @@ const CommitAnalytics: React.FC<CommitAnalyticsProps> = ({ analytics }) => {
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={analytics.timeDistribution}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="hour" stroke="#9CA3AF" fontSize={12} />
-              <YAxis stroke="#9CA3AF" fontSize={12} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1F2937', 
-                  border: '1px solid #374151',
-                  borderRadius: '8px'
-                }}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_SURFACE_COLORS.grid} />
+              <XAxis dataKey="hour" stroke={CHART_SURFACE_COLORS.axis} fontSize={12} />
+              <YAxis stroke={CHART_SURFACE_COLORS.axis} fontSize={12} />
+              <Tooltip contentStyle={DEFAULT_TOOLTIP_STYLE} />
               <Bar dataKey="count" fill="#8B5CF6" />
             </BarChart>
           </ResponsiveContainer>
@@ -176,7 +163,7 @@ const CommitAnalytics: React.FC<CommitAnalyticsProps> = ({ analytics }) => {
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
               >
                 {commitTypeData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip />

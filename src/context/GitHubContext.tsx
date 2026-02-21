@@ -3,6 +3,7 @@ import { GitHubAPI } from './modules/GitHubAPI';
 import { useGitHubState } from './modules/GitHubState';
 import { GitHubServices } from './modules/GitHubServices';
 import type { Repository, Commit, User } from '../types/github';
+import { isValidGitHubToken, normalizeGitHubToken } from '../utils/githubToken';
 
 interface CommitFetchOptions {
   since?: string;
@@ -146,17 +147,19 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Token setter com validação
   const setToken = useCallback((newToken: string) => {
+    const normalizedToken = normalizeGitHubToken(newToken);
+
     // Validação básica do token
-    if (newToken && !newToken.startsWith('ghp_') && !newToken.startsWith('github_pat_')) {
+    if (normalizedToken && !isValidGitHubToken(normalizedToken)) {
       state.setError('Token inválido. Verifique se é um Personal Access Token válido.');
       return;
     }
     
-    setTokenState(newToken);
-    setStoredToken(newToken);
+    setTokenState(normalizedToken);
+    setStoredToken(normalizedToken);
     
     if (services) {
-      services.updateToken(newToken);
+      services.updateToken(normalizedToken);
     } else {
       state.clearAllData();
       state.clearAllErrors();
@@ -182,7 +185,7 @@ export const GitHubProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     // Validação do token antes da requisição
-    if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+    if (!isValidGitHubToken(token)) {
       state.setCommitError('Token do GitHub inválido');
       return;
     }

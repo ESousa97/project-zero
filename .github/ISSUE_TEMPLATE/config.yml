@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Repository archived notice
+    url: https://github.com/ESousa97/project-zero
+    about: This project is archived and kept public for study only; responses/reviews/fixes are not guaranteed.
+  - name: Security disclosure
+    url: https://github.com/ESousa97/project-zero/security/advisories
+    about: Report security vulnerabilities privately

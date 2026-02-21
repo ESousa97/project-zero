@@ -11,14 +11,57 @@ node_modules
 dist
 dist-ssr
 *.local
+coverage
+.nyc_output
 
-# Editor directories and files
+# Environment files
+.env
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Local overrides and caches
+*.local
+.cache/
+.eslintcache
+.vite/
+*.tsbuildinfo
+
+# IDE / editor
 .vscode/*
 !.vscode/extensions.json
-.idea
+!.vscode/tasks.json
+.idea/
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Misc
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Internal reports
+BASELINE.md
+FINAL.md

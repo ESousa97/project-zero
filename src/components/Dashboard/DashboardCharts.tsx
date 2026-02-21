@@ -14,6 +14,11 @@ import {
   LineChart,
 } from 'recharts';
 import { TrendingUp, Code, Gauge } from 'lucide-react';
+import {
+  CHART_COLORS,
+  CHART_SURFACE_COLORS,
+  DEFAULT_TOOLTIP_STYLE,
+} from '../../constants/chartTheme';
 
 interface TimeSeriesData {
   date: string;
@@ -61,8 +66,6 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
   onMetricChange,
   hasPerformanceData,
 }) => {
-  const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'];
-
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       {/* Linha do tempo */}
@@ -88,29 +91,23 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
         {timeSeriesData && timeSeriesData.length > 0 ? (
           <ResponsiveContainer width="100%" height={350}>
             <LineChart data={timeSeriesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_SURFACE_COLORS.grid} />
               <XAxis
                 dataKey="date"
-                stroke="#9CA3AF"
+                stroke={CHART_SURFACE_COLORS.axis}
                 fontSize={12}
-                tick={{ fill: '#9CA3AF' }}
-                axisLine={{ stroke: '#374151' }}
+                tick={{ fill: CHART_SURFACE_COLORS.axis }}
+                axisLine={{ stroke: CHART_SURFACE_COLORS.grid }}
               />
               <YAxis
-                stroke="#9CA3AF"
+                stroke={CHART_SURFACE_COLORS.axis}
                 fontSize={12}
-                tick={{ fill: '#9CA3AF' }}
-                axisLine={{ stroke: '#374151' }}
+                tick={{ fill: CHART_SURFACE_COLORS.axis }}
+                axisLine={{ stroke: CHART_SURFACE_COLORS.grid }}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1F2937',
-                  border: '1px solid #374151',
-                  borderRadius: '8px',
-                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                  color: '#F9FAFB',
-                }}
-                labelStyle={{ color: '#F9FAFB' }}
+                contentStyle={DEFAULT_TOOLTIP_STYLE}
+                labelStyle={{ color: CHART_SURFACE_COLORS.tooltipText }}
               />
               <Line
                 type="monotone"
@@ -157,17 +154,10 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                   labelLine={false}
                 >
                   {languageData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: '1px solid #374151',
-                    borderRadius: '8px',
-                    color: '#F9FAFB',
-                  }}
-                />
+                <Tooltip contentStyle={DEFAULT_TOOLTIP_STYLE} />
               </PieChart>
             </ResponsiveContainer>
 
@@ -177,7 +167,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                   <div className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
                       aria-hidden="true"
                     />
                     <span className="text-white text-sm font-medium">{lang.language}</span>
@@ -213,24 +203,24 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
           </h3>
           <ResponsiveContainer width="100%" height={400}>
             <ScatterChart data={repositoryMetrics.filter((r) => r.stars > 0 || r.forks > 0 || r.activity > 20)}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_SURFACE_COLORS.grid} />
               <XAxis
                 type="number"
                 dataKey="stars"
                 name="Stars"
-                stroke="#9CA3AF"
-                label={{ value: 'Stars', position: 'insideBottom', offset: -5, style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
+                stroke={CHART_SURFACE_COLORS.axis}
+                label={{ value: 'Stars', position: 'insideBottom', offset: -5, style: { textAnchor: 'middle', fill: CHART_SURFACE_COLORS.axis } }}
                 domain={['dataMin - 1', 'dataMax + 1']}
-                tick={{ fill: '#9CA3AF' }}
+                tick={{ fill: CHART_SURFACE_COLORS.axis }}
               />
               <YAxis
                 type="number"
                 dataKey="forks"
                 name="Forks"
-                stroke="#9CA3AF"
-                label={{ value: 'Forks', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
+                stroke={CHART_SURFACE_COLORS.axis}
+                label={{ value: 'Forks', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: CHART_SURFACE_COLORS.axis } }}
                 domain={['dataMin - 1', 'dataMax + 1']}
-                tick={{ fill: '#9CA3AF' }}
+                tick={{ fill: CHART_SURFACE_COLORS.axis }}
               />
               <Tooltip
                 cursor={{ strokeDasharray: '3 3' }}
