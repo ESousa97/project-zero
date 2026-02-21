@@ -124,7 +124,7 @@ const CommitHistory: React.FC = () => {
     </div>
   );
 
-  return (
+  const renderContent = () => (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header Principal - REPLICANDO LÓGICA DO DASHBOARD */}
       <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
@@ -648,6 +648,8 @@ const CommitHistory: React.FC = () => {
       )}
     </div>
   );
+
+  return renderContent();
 };
 
 export default CommitHistory;

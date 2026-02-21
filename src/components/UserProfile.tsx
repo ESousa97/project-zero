@@ -32,6 +32,286 @@ interface AchievementBadge {
   requirement?: number;
 }
 
+const DAY_IN_MS = 1000 * 60 * 60 * 24;
+
+const stableHash = (value: string): number => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const deterministicRange = (seed: string, min: number, max: number): number => {
+  const span = max - min + 1;
+  return min + (stableHash(seed) % span);
+};
+
+const resolveReferenceTimestamp = (
+  repositories: Array<{ updated_at: string }> ,
+  fallbackCreatedAt?: string,
+): number => {
+  const latestRepoUpdate = repositories.reduce((latest, repo) => {
+    const timestamp = new Date(repo.updated_at).getTime();
+    return Number.isFinite(timestamp) ? Math.max(latest, timestamp) : latest;
+  }, 0);
+
+  const fallbackTimestamp = fallbackCreatedAt ? new Date(fallbackCreatedAt).getTime() : 0;
+  return Math.max(latestRepoUpdate, Number.isFinite(fallbackTimestamp) ? fallbackTimestamp : 0);
+};
+
+const calculateAdvancedStats = ({
+  repositories,
+  followers,
+  userCreatedAt,
+  commitsLength,
+  referenceTimestamp,
+}: {
+  repositories: Array<{
+    stargazers_count: number;
+    forks_count: number;
+    watchers_count: number;
+    open_issues_count: number;
+    size: number;
+    language: string | null;
+    private: boolean;
+    created_at: string;
+    updated_at: string;
+    name: string;
+  }>;
+  followers: number;
+  userCreatedAt?: string;
+  commitsLength: number;
+  referenceTimestamp: number;
+}) => {
+  if (!repositories.length) return null;
+
+  const totalStars = repositories.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+  const totalForks = repositories.reduce((sum, repo) => sum + repo.forks_count, 0);
+  const totalWatchers = repositories.reduce((sum, repo) => sum + repo.watchers_count, 0);
+  const totalIssues = repositories.reduce((sum, repo) => sum + repo.open_issues_count, 0);
+  const totalSize = repositories.reduce((sum, repo) => sum + repo.size, 0);
+
+  const languages = [...new Set(repositories.map(repo => repo.language).filter(Boolean))];
+  const publicRepos = repositories.filter(repo => !repo.private).length;
+  const privateRepos = repositories.length - publicRepos;
+
+  const reposByYear = repositories.reduce((acc, repo) => {
+    const year = new Date(repo.created_at).getFullYear();
+    acc[year] = (acc[year] || 0) + 1;
+    return acc;
+  }, {} as Record<number, number>);
+
+  const recentActivity = repositories.filter(repo => {
+    const updatedAt = new Date(repo.updated_at).getTime();
+    if (!Number.isFinite(updatedAt)) {
+      return false;
+    }
+    const daysSinceUpdate = (referenceTimestamp - updatedAt) / DAY_IN_MS;
+    return daysSinceUpdate <= 30;
+  }).length;
+
+  const mostStarredRepo = repositories.reduce((prev, current) =>
+    prev.stargazers_count > current.stargazers_count ? prev : current,
+  );
+
+  const avgStarsPerRepo = totalStars / repositories.length;
+  const currentStreak = 15;
+  const longestStreak = 45;
+
+  const developerScore = Math.min(100, (
+    (totalStars * 0.3) +
+    (totalForks * 0.2) +
+    (repositories.length * 2) +
+    (languages.length * 5) +
+    (followers * 0.5)
+  ));
+
+  const userCreatedTimestamp = userCreatedAt ? new Date(userCreatedAt).getTime() : 0;
+  const validUserCreatedTimestamp = Number.isFinite(userCreatedTimestamp) ? userCreatedTimestamp : referenceTimestamp;
+
+  return {
+    totalRepos: repositories.length,
+    totalStars,
+    totalForks,
+    totalWatchers,
+    totalIssues,
+    totalSize: Math.round(totalSize / 1024),
+    languages: languages.length,
+    publicRepos,
+    privateRepos,
+    reposByYear,
+    recentActivity,
+    mostStarredRepo: mostStarredRepo.name,
+    mostStarredRepoStars: mostStarredRepo.stargazers_count,
+    avgStarsPerRepo: avgStarsPerRepo.toFixed(1),
+    currentStreak,
+    longestStreak,
+    developerScore: Math.round(developerScore),
+    accountAge: Math.floor((referenceTimestamp - validUserCreatedTimestamp) / DAY_IN_MS),
+    contributionsThisYear: commitsLength || 156,
+    avgCommitsPerDay: ((commitsLength || 156) / 365).toFixed(1),
+  };
+};
+
+const buildLanguageContributions = (
+  repositories: Array<{ id: number; language: string | null; stargazers_count: number }>,
+): LanguageContribution[] => {
+  if (!repositories.length) return [];
+
+  const langMap = new Map<string, { repos: number; stars: number; commits: number }>();
+
+  repositories.forEach(repo => {
+    if (repo.language) {
+      const current = langMap.get(repo.language) || { repos: 0, stars: 0, commits: 0 };
+      const estimatedCommits = deterministicRange(`${repo.id}-${repo.language}-commits`, 10, 59);
+
+      langMap.set(repo.language, {
+        repos: current.repos + 1,
+        stars: current.stars + repo.stargazers_count,
+        commits: current.commits + estimatedCommits,
+      });
+    }
+  });
+
+  const totalRepos = repositories.length;
+
+  return Array.from(langMap.entries())
+    .map(([language, data], index) => ({
+      language,
+      repos: data.repos,
+      stars: data.stars,
+      commits: data.commits,
+      percentage: (data.repos / totalRepos) * 100,
+      color: CHART_COLORS[index % CHART_COLORS.length],
+    }))
+    .sort((a, b) => b.repos - a.repos)
+    .slice(0, 8);
+};
+
+const buildActivityData = (
+  repositories: Array<{ id: number; created_at: string }>,
+  referenceTimestamp: number,
+) => {
+  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const currentYear = new Date(referenceTimestamp).getFullYear();
+
+  return months.map((month, index) => {
+    const baseActivity = deterministicRange(`${currentYear}-${index}-base-${repositories.length}`, 10, 39);
+
+    const reposCreated = repositories.filter(repo => {
+      const repoDate = new Date(repo.created_at);
+      return repoDate.getFullYear() === currentYear && repoDate.getMonth() === index;
+    }).length;
+
+    return {
+      month,
+      commits: baseActivity + deterministicRange(`${month}-${index}-commits`, 0, 19),
+      repos: reposCreated,
+      stars: deterministicRange(`${month}-${index}-stars`, 0, 14),
+      prs: deterministicRange(`${month}-${index}-prs`, 2, 9),
+    };
+  });
+};
+
+const buildRepositoryPerformanceData = (
+  repositories: Array<{ name: string; stargazers_count: number; forks_count: number; size: number; created_at: string }>,
+  referenceTimestamp: number,
+) => repositories.slice(0, 20).map(repo => ({
+  name: repo.name,
+  stars: repo.stargazers_count,
+  forks: repo.forks_count,
+  size: repo.size / 1024,
+  age: Math.floor((referenceTimestamp - new Date(repo.created_at).getTime()) / DAY_IN_MS),
+}));
+
+const buildAchievements = (
+  advancedStats: ReturnType<typeof calculateAdvancedStats>,
+  followers: number,
+): AchievementBadge[] => {
+  if (!advancedStats) return [];
+
+  return [
+    {
+      id: 'first-repo',
+      title: 'Primeiro Repositório',
+      description: 'Criou seu primeiro repositório',
+      icon: GitBranch,
+      color: 'text-blue-500',
+      earned: advancedStats.totalRepos > 0,
+    },
+    {
+      id: 'star-collector',
+      title: 'Colecionador de Stars',
+      description: 'Recebeu 100+ stars',
+      icon: Star,
+      color: 'text-yellow-500',
+      earned: advancedStats.totalStars >= 100,
+      progress: advancedStats.totalStars,
+      requirement: 100,
+    },
+    {
+      id: 'fork-master',
+      title: 'Mestre dos Forks',
+      description: 'Recebeu 50+ forks',
+      icon: GitCommit,
+      color: 'text-green-500',
+      earned: advancedStats.totalForks >= 50,
+      progress: advancedStats.totalForks,
+      requirement: 50,
+    },
+    {
+      id: 'polyglot',
+      title: 'Poliglota',
+      description: 'Usa 5+ linguagens diferentes',
+      icon: Code,
+      color: 'text-purple-500',
+      earned: advancedStats.languages >= 5,
+      progress: advancedStats.languages,
+      requirement: 5,
+    },
+    {
+      id: 'productive',
+      title: 'Produtivo',
+      description: 'Criou 20+ repositórios',
+      icon: Zap,
+      color: 'text-orange-500',
+      earned: advancedStats.totalRepos >= 20,
+      progress: advancedStats.totalRepos,
+      requirement: 20,
+    },
+    {
+      id: 'influencer',
+      title: 'Influenciador',
+      description: 'Tem 100+ seguidores',
+      icon: Users,
+      color: 'text-pink-500',
+      earned: followers >= 100,
+      progress: followers,
+      requirement: 100,
+    },
+    {
+      id: 'fire-streak',
+      title: 'Em Chamas',
+      description: 'Streak de 30+ dias',
+      icon: Flame,
+      color: 'text-red-500',
+      earned: advancedStats.currentStreak >= 30,
+      progress: advancedStats.currentStreak,
+      requirement: 30,
+    },
+    {
+      id: 'veteran',
+      title: 'Veterano',
+      description: '2+ anos no GitHub',
+      icon: Trophy,
+      color: 'text-amber-500',
+      earned: advancedStats.accountAge >= 730,
+    },
+  ];
+};
+
 const UserProfile: React.FC = () => {
   const { user, repositories, commits, loading, fetchUser } = useGitHub();
 
@@ -45,205 +325,37 @@ const UserProfile: React.FC = () => {
     }
   }, [user, loading, memoizedFetchUser]);
 
+  const referenceTimestamp = useMemo(
+    () => resolveReferenceTimestamp(repositories, user?.created_at),
+    [repositories, user?.created_at],
+  );
+
   const advancedStats = useMemo(() => {
-    if (!repositories.length) return null;
-
-    const totalStars = repositories.reduce((sum, repo) => sum + repo.stargazers_count, 0);
-    const totalForks = repositories.reduce((sum, repo) => sum + repo.forks_count, 0);
-    const totalWatchers = repositories.reduce((sum, repo) => sum + repo.watchers_count, 0);
-    const totalIssues = repositories.reduce((sum, repo) => sum + repo.open_issues_count, 0);
-    const totalSize = repositories.reduce((sum, repo) => sum + repo.size, 0);
-
-    const languages = [...new Set(repositories.map(repo => repo.language).filter(Boolean))];
-    const publicRepos = repositories.filter(repo => !repo.private).length;
-    const privateRepos = repositories.length - publicRepos;
-
-    const reposByYear = repositories.reduce((acc, repo) => {
-      const year = new Date(repo.created_at).getFullYear();
-      acc[year] = (acc[year] || 0) + 1;
-      return acc;
-    }, {} as Record<number, number>);
-
-    const recentActivity = repositories.filter(repo => {
-      const daysSinceUpdate = (Date.now() - new Date(repo.updated_at).getTime()) / (1000 * 60 * 60 * 24);
-      return daysSinceUpdate <= 30;
-    }).length;
-
-    const mostStarredRepo = repositories.reduce((prev, current) => 
-      prev.stargazers_count > current.stargazers_count ? prev : current
-    );
-
-    const avgStarsPerRepo = totalStars / repositories.length;
-    const currentStreak = 15;
-    const longestStreak = 45;
-
-    const developerScore = Math.min(100, (
-      (totalStars * 0.3) + 
-      (totalForks * 0.2) + 
-      (repositories.length * 2) + 
-      (languages.length * 5) +
-      (user?.followers || 0) * 0.5
-    ));
-
-    return {
-      totalRepos: repositories.length,
-      totalStars,
-      totalForks,
-      totalWatchers,
-      totalIssues,
-      totalSize: Math.round(totalSize / 1024),
-      languages: languages.length,
-      publicRepos,
-      privateRepos,
-      reposByYear,
-      recentActivity,
-      mostStarredRepo: mostStarredRepo.name,
-      mostStarredRepoStars: mostStarredRepo.stargazers_count,
-      avgStarsPerRepo: avgStarsPerRepo.toFixed(1),
-      currentStreak,
-      longestStreak,
-      developerScore: Math.round(developerScore),
-      accountAge: Math.floor((Date.now() - new Date(user?.created_at || '').getTime()) / (1000 * 60 * 60 * 24)),
-      contributionsThisYear: commits.length || 156,
-      avgCommitsPerDay: ((commits.length || 156) / 365).toFixed(1),
-    };
-  }, [repositories, user?.followers, user?.created_at, commits.length]);
+    return calculateAdvancedStats({
+      repositories,
+      followers: user?.followers || 0,
+      userCreatedAt: user?.created_at,
+      commitsLength: commits.length,
+      referenceTimestamp,
+    });
+  }, [repositories, user?.followers, user?.created_at, commits.length, referenceTimestamp]);
 
   const languageContributions: LanguageContribution[] = useMemo(() => {
-    if (!repositories.length) return [];
-    
-    const langMap = new Map<string, { repos: number; stars: number; commits: number }>();
-
-    repositories.forEach(repo => {
-      if (repo.language) {
-        const current = langMap.get(repo.language) || { repos: 0, stars: 0, commits: 0 };
-        langMap.set(repo.language, {
-          repos: current.repos + 1,
-          stars: current.stars + repo.stargazers_count,
-          commits: current.commits + Math.floor(Math.random() * 50) + 10,
-        });
-      }
-    });
-
-    const totalRepos = repositories.length;
-
-    return Array.from(langMap.entries())
-      .map(([language, data], index) => ({
-        language,
-        repos: data.repos,
-        stars: data.stars,
-        commits: data.commits,
-        percentage: (data.repos / totalRepos) * 100,
-        color: CHART_COLORS[index % CHART_COLORS.length],
-      }))
-      .sort((a, b) => b.repos - a.repos)
-      .slice(0, 8);
+    return buildLanguageContributions(repositories);
   }, [repositories]);
 
   const activityData = useMemo(() => {
-    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const currentYear = new Date().getFullYear();
-
-    return months.map((month, index) => {
-      const baseActivity = Math.floor(Math.random() * 30) + 10;
-
-      const reposCreated = repositories.filter(repo => {
-        const repoDate = new Date(repo.created_at);
-        return repoDate.getFullYear() === currentYear && repoDate.getMonth() === index;
-      }).length;
-
-      return {
-        month,
-        commits: baseActivity + Math.floor(Math.random() * 20),
-        repos: reposCreated,
-        stars: Math.floor(Math.random() * 15),
-        prs: Math.floor(Math.random() * 8) + 2,
-      };
-    });
-  }, [repositories]);
+    return buildActivityData(repositories, referenceTimestamp);
+  }, [repositories, referenceTimestamp]);
 
   const achievements: AchievementBadge[] = useMemo(() => {
-    if (!advancedStats) return [];
-
-    return [
-      {
-        id: 'first-repo',
-        title: 'Primeiro Repositório',
-        description: 'Criou seu primeiro repositório',
-        icon: GitBranch,
-        color: 'text-blue-500',
-        earned: advancedStats.totalRepos > 0,
-      },
-      {
-        id: 'star-collector',
-        title: 'Colecionador de Stars',
-        description: 'Recebeu 100+ stars',
-        icon: Star,
-        color: 'text-yellow-500',
-        earned: advancedStats.totalStars >= 100,
-        progress: advancedStats.totalStars,
-        requirement: 100,
-      },
-      {
-        id: 'fork-master',
-        title: 'Mestre dos Forks',
-        description: 'Recebeu 50+ forks',
-        icon: GitCommit,
-        color: 'text-green-500',
-        earned: advancedStats.totalForks >= 50,
-        progress: advancedStats.totalForks,
-        requirement: 50,
-      },
-      {
-        id: 'polyglot',
-        title: 'Poliglota',
-        description: 'Usa 5+ linguagens diferentes',
-        icon: Code,
-        color: 'text-purple-500',
-        earned: advancedStats.languages >= 5,
-        progress: advancedStats.languages,
-        requirement: 5,
-      },
-      {
-        id: 'productive',
-        title: 'Produtivo',
-        description: 'Criou 20+ repositórios',
-        icon: Zap,
-        color: 'text-orange-500',
-        earned: advancedStats.totalRepos >= 20,
-        progress: advancedStats.totalRepos,
-        requirement: 20,
-      },
-      {
-        id: 'influencer',
-        title: 'Influenciador',
-        description: 'Tem 100+ seguidores',
-        icon: Users,
-        color: 'text-pink-500',
-        earned: (user?.followers || 0) >= 100,
-        progress: user?.followers || 0,
-        requirement: 100,
-      },
-      {
-        id: 'fire-streak',
-        title: 'Em Chamas',
-        description: 'Streak de 30+ dias',
-        icon: Flame,
-        color: 'text-red-500',
-        earned: advancedStats.currentStreak >= 30,
-        progress: advancedStats.currentStreak,
-        requirement: 30,
-      },
-      {
-        id: 'veteran',
-        title: 'Veterano',
-        description: '2+ anos no GitHub',
-        icon: Trophy,
-        color: 'text-amber-500',
-        earned: advancedStats.accountAge >= 730,
-      },
-    ];
+    return buildAchievements(advancedStats, user?.followers || 0);
   }, [advancedStats, user?.followers]);
+
+  const repositoryPerformanceData = useMemo(
+    () => buildRepositoryPerformanceData(repositories, referenceTimestamp),
+    [repositories, referenceTimestamp],
+  );
 
   if (loading && !user) {
     return (
@@ -592,13 +704,7 @@ const UserProfile: React.FC = () => {
           </h3>
           
           <ResponsiveContainer width="100%" height={250}>
-            <ScatterChart data={repositories.slice(0, 20).map(repo => ({
-              name: repo.name,
-              stars: repo.stargazers_count,
-              forks: repo.forks_count,
-              size: repo.size / 1024,
-              age: Math.floor((Date.now() - new Date(repo.created_at).getTime()) / (1000 * 60 * 60 * 24))
-            }))}>
+            <ScatterChart data={repositoryPerformanceData}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_SURFACE_COLORS.grid} />
               <XAxis 
                 type="number" 
