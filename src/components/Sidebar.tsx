@@ -25,7 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   return (
     <aside
-      className={`fixed left-0 top-34 h-[calc(100vh-64px)] transition-all duration-300 z-40 border-r flex flex-col ${
+      className={`fixed left-0 top-16 h-[calc(100vh-64px)] transition-all duration-300 z-40 border-r flex flex-col ${
         collapsed ? 'w-16' : 'w-64'
       } ${
         darkMode
