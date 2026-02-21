@@ -181,22 +181,410 @@ const CommitMainContent: React.FC<CommitMainContentProps> = ({
   );
 };
 
+interface StatsForDisplay {
+  source: string;
+  total: number;
+  filtered: number;
+  displayed: number;
+  analytics: number;
+}
+
+interface ViewControlsProps {
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+}
+
+interface CommitStatsGridProps {
+  statsForDisplay: StatsForDisplay;
+}
+
+interface DebugPanelsProps {
+  statsForDisplay: StatsForDisplay;
+  repositoriesLength: number;
+  selectedRepo: string;
+  selectedBranch: string;
+  isCurrentlyLoading: boolean;
+  isFiltered: boolean;
+  viewMode: ViewMode;
+  showAnalytics: boolean;
+  uniqueAuthorsLength: number;
+}
+
+interface AllRepositoriesNoticeProps {
+  repositoriesLength: number;
+  allReposCommitsLength: number;
+  loadingAllRepos: boolean;
+}
+
+interface SourceConfigurationProps {
+  repositories: Array<{ id: number; full_name: string; name: string }>;
+  selectedRepo: string;
+  selectedBranch: string;
+  isCurrentlyLoading: boolean;
+  allReposCommitsLength: number;
+  onRepoChange: (repoFullName: string) => void;
+  onBranchChange: (branch: string) => void;
+  onRefresh: () => void;
+}
+
+interface QuickControlsProps {
+  showAnalytics: boolean;
+  isFiltered: boolean;
+  onToggleAnalytics: () => void;
+  onResetFilters: () => void;
+}
+
+const ViewControls: React.FC<ViewControlsProps> = ({ viewMode, onViewModeChange }) => (
+  <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg p-1 border border-slate-700">
+    <button
+      onClick={() => onViewModeChange('list')}
+      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+        viewMode === 'list'
+          ? 'bg-blue-600 text-white shadow-sm'
+          : 'text-slate-400 hover:text-white hover:bg-slate-700'
+      }`}
+    >
+      <List className="w-4 h-4" />
+      Lista
+    </button>
+    <button
+      onClick={() => onViewModeChange('timeline')}
+      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+        viewMode === 'timeline'
+          ? 'bg-blue-600 text-white shadow-sm'
+          : 'text-slate-400 hover:text-white hover:bg-slate-700'
+      }`}
+    >
+      <Clock className="w-4 h-4" />
+      Timeline
+    </button>
+    <button
+      onClick={() => onViewModeChange('analytics')}
+      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+        viewMode === 'analytics'
+          ? 'bg-blue-600 text-white shadow-sm'
+          : 'text-slate-400 hover:text-white hover:bg-slate-700'
+      }`}
+    >
+      <BarChart3 className="w-4 h-4" />
+      Analytics
+    </button>
+  </div>
+);
+
+const CommitStatsGrid: React.FC<CommitStatsGridProps> = ({ statsForDisplay }) => (
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+    <div className="bg-green-600/10 border border-green-500/20 rounded-lg p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <p className="text-slate-400 text-sm font-medium mb-1">Commits Coletados</p>
+          <p className="text-2xl font-bold text-white">{statsForDisplay.total.toLocaleString()}</p>
+          <div className="flex items-center space-x-1 text-green-400">
+            <GitCommit className="w-3 h-3" />
+            <span className="text-xs font-medium">API GitHub Real</span>
+          </div>
+          <div className="mt-1">
+            <div className="flex items-center gap-1">
+              <CheckCircle className="w-3 h-3 text-green-300" />
+              <span className="text-xs text-green-300">Fonte: {statsForDisplay.source}</span>
+            </div>
+          </div>
+        </div>
+        <div className="p-2 bg-gradient-to-r from-green-500 to-green-600 rounded-lg">
+          <GitCommit className="w-4 h-4 text-white" />
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-blue-600/10 border border-blue-500/20 rounded-lg p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <p className="text-slate-400 text-sm font-medium mb-1">Pós-Filtros</p>
+          <p className="text-2xl font-bold text-white">{statsForDisplay.filtered.toLocaleString()}</p>
+          <div className="flex items-center space-x-1 text-blue-400">
+            <span className="text-xs font-medium">Filtrados</span>
+          </div>
+        </div>
+        <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg">
+          <Activity className="w-4 h-4 text-white" />
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-purple-600/10 border border-purple-500/20 rounded-lg p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <p className="text-slate-400 text-sm font-medium mb-1">Analytics</p>
+          <p className="text-2xl font-bold text-white">{statsForDisplay.analytics.toLocaleString()}</p>
+          <div className="flex items-center space-x-1 text-purple-400">
+            <span className="text-xs font-medium">Processados</span>
+          </div>
+        </div>
+        <div className="p-2 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg">
+          <BarChart3 className="w-4 h-4 text-white" />
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-orange-600/10 border border-orange-500/20 rounded-lg p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <p className="text-slate-400 text-sm font-medium mb-1">Lista</p>
+          <p className="text-2xl font-bold text-white">{statsForDisplay.displayed}</p>
+          <div className="flex items-center space-x-1 text-orange-400">
+            <span className="text-xs font-medium">Top exibidos</span>
+          </div>
+        </div>
+        <div className="p-2 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg">
+          <List className="w-4 h-4 text-white" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const DebugPanels: React.FC<DebugPanelsProps> = ({
+  statsForDisplay,
+  repositoriesLength,
+  selectedRepo,
+  selectedBranch,
+  isCurrentlyLoading,
+  isFiltered,
+  viewMode,
+  showAnalytics,
+  uniqueAuthorsLength,
+}) => (
+  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
+      <h4 className="text-slate-300 font-medium mb-2 flex items-center gap-2">
+        <Database className="w-4 h-4" />
+        Debug Info
+      </h4>
+      <div className="text-xs text-slate-400 space-y-1">
+        <div className="flex items-center gap-1">
+          <CheckCircle className="w-3 h-3" />
+          <span>Fonte: {statsForDisplay.source}</span>
+        </div>
+        <div>Total coletado: {statsForDisplay.total}</div>
+        <div>Filtrados: {statsForDisplay.filtered}</div>
+        <div>Exibidos: {statsForDisplay.displayed}</div>
+        <div>Analytics: {statsForDisplay.analytics}</div>
+      </div>
+    </div>
+
+    <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
+      <h4 className="text-slate-300 font-medium mb-2 flex items-center gap-2">
+        <RefreshCw className="w-4 h-4" />
+        Status da Busca
+      </h4>
+      <div className="text-xs text-slate-400 space-y-1">
+        <div>Repositórios: {repositoriesLength}</div>
+        <div>Selecionado: {selectedRepo || 'Nenhum'}</div>
+        <div>Branch: {selectedBranch}</div>
+        <div>Carregando: {isCurrentlyLoading ? 'Sim' : 'Não'}</div>
+      </div>
+    </div>
+
+    <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
+      <h4 className="text-slate-300 font-medium mb-2 flex items-center gap-2">
+        <Activity className="w-4 h-4" />
+        Performance
+      </h4>
+      <div className="text-xs text-slate-400 space-y-1">
+        <div>Filtros ativos: {isFiltered ? 'Sim' : 'Não'}</div>
+        <div>Modo visualização: {viewMode}</div>
+        <div>Analytics ativo: {showAnalytics ? 'Sim' : 'Não'}</div>
+        <div>Autores únicos: {uniqueAuthorsLength}</div>
+      </div>
+    </div>
+  </div>
+);
+
+const AllRepositoriesNotice: React.FC<AllRepositoriesNoticeProps> = ({
+  repositoriesLength,
+  allReposCommitsLength,
+  loadingAllRepos,
+}) => (
+  <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+    <div className="flex items-start gap-3">
+      <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+      <div className="text-sm">
+        <p className="text-blue-400 font-medium mb-1">Busca Completa</p>
+        <p className="text-slate-300 leading-relaxed">
+          Analise com facilidade<strong> todos os repositórios</strong> em um só lugar.
+          Coleta de <strong>TODOS os {repositoriesLength} repositórios</strong> via API real.
+        </p>
+        {allReposCommitsLength > 0 && (
+          <div className="mt-3 space-y-1">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-400" />
+              <span className="text-green-400 font-medium">
+                {allReposCommitsLength.toLocaleString()} commits coletados (REAL)
+              </span>
+            </div>
+            {loadingAllRepos && (
+              <div className="bg-slate-700/30 rounded-full h-2 mt-2">
+                <div className="bg-blue-500 h-2 rounded-full animate-pulse w-full" />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
+const SourceConfiguration: React.FC<SourceConfigurationProps> = ({
+  repositories,
+  selectedRepo,
+  selectedBranch,
+  isCurrentlyLoading,
+  allReposCommitsLength,
+  onRepoChange,
+  onBranchChange,
+  onRefresh,
+}) => (
+  <div className="lg:col-span-2 bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+    <div className="flex items-center gap-3 mb-4">
+      <GitBranch className="w-5 h-5 text-blue-400" />
+      <h3 className="text-lg font-semibold text-white">Configuração da Fonte</h3>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-slate-300">Repositório</label>
+        <select
+          value={selectedRepo}
+          onChange={(e) => onRepoChange(e.target.value)}
+          className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+        >
+          <option value="">Selecione um repositório</option>
+          <option value="all">Todos os repositórios ({repositories.length})</option>
+          {repositories.map(repo => (
+            <option key={repo.id} value={repo.full_name}>
+              {repo.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-slate-300">Branch</label>
+        <select
+          value={selectedBranch}
+          onChange={(e) => onBranchChange(e.target.value)}
+          disabled={!selectedRepo || selectedRepo === 'all'}
+          className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+        >
+          <option value="main">main</option>
+          <option value="master">master</option>
+          <option value="develop">develop</option>
+          <option value="dev">dev</option>
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-slate-300">Ação</label>
+        <button
+          onClick={onRefresh}
+          disabled={!selectedRepo || isCurrentlyLoading}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {isCurrentlyLoading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Carregando...</span>
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-4 h-4" />
+              <span>Buscar</span>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+
+    {selectedRepo && (
+      <div className="mt-4 p-3 bg-slate-700/20 rounded-lg border border-slate-600/50">
+        <div className="flex items-center gap-2 text-sm">
+          <div className={`w-2 h-2 rounded-full ${selectedRepo === 'all' ? 'bg-purple-500' : 'bg-blue-500'}`} />
+          <span className="text-slate-300">
+            {selectedRepo === 'all'
+              ? `Múltiplos repositórios • ${allReposCommitsLength} commits coletados`
+              : `${selectedRepo} • Branch: ${selectedBranch}`
+            }
+          </span>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+const QuickControls: React.FC<QuickControlsProps> = ({
+  showAnalytics,
+  isFiltered,
+  onToggleAnalytics,
+  onResetFilters,
+}) => (
+  <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+    <div className="flex items-center gap-3 mb-4">
+      <BarChart3 className="w-5 h-5 text-purple-400" />
+      <h3 className="text-lg font-semibold text-white">Controles</h3>
+    </div>
+
+    <div className="space-y-3">
+      <button
+        onClick={onToggleAnalytics}
+        className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+          showAnalytics
+            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+            : 'bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600'
+        }`}
+      >
+        <BarChart3 className="w-4 h-4" />
+        {showAnalytics ? 'Ocultar Analytics' : 'Mostrar Analytics'}
+      </button>
+
+      {isFiltered && (
+        <button
+          onClick={onResetFilters}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700/50 hover:bg-red-600/20 text-slate-300 hover:text-red-400 rounded-lg font-medium transition-all duration-200 border border-slate-600 hover:border-red-500/50"
+        >
+          <RotateCcw className="w-4 h-4" />
+          Limpar Filtros
+        </button>
+      )}
+    </div>
+
+    <div className="mt-4 p-3 bg-slate-700/20 rounded-lg">
+      <h4 className="text-xs font-medium text-slate-300 mb-2 flex items-center gap-1">
+        <Activity className="w-3 h-3" />
+        Filtros Avançados
+      </h4>
+      <ul className="text-xs text-slate-400 space-y-1">
+        <li>• Filtros de segundos até anos</li>
+        <li>• Lista limitada a 10 commits</li>
+        <li>• Analytics usa todos os dados filtrados</li>
+        <li>• Ctrl+K para busca rápida</li>
+      </ul>
+    </div>
+  </div>
+);
+
 const CommitHistory: React.FC = () => {
   const { repositories, loading, fetchCommits } = useGitHub();
-  
-  // Estados locais
+
   const [viewMode, setViewMode] = React.useState<ViewMode>('list');
   const [showAnalytics, setShowAnalytics] = React.useState(false);
-  
-  // Hooks personalizados para gerenciamento de dados
+
   const {
     currentCommits,
     allReposCommits,
     loadingAllRepos,
     fetchAllRepositoriesCommits
   } = useCommitData();
-  
-  // Hooks para filtros e processamento de commits
+
   const {
     filters,
     updateFilter,
@@ -207,11 +595,9 @@ const CommitHistory: React.FC = () => {
     totalFilteredCount,
     isFiltered
   } = useCommitFilters(currentCommits);
-  
-  // Hook para analytics dos commits (usando todos os commits filtrados)
+
   const analytics = useCommitAnalytics(allFilteredCommitsForAnalytics);
 
-  // Handlers
   const handleRepoChange = (repoFullName: string) => {
     updateFilter('selectedRepo', repoFullName);
   };
@@ -223,17 +609,17 @@ const CommitHistory: React.FC = () => {
   const handleRefresh = () => {
     if (filters.selectedRepo === 'all') {
       fetchAllRepositoriesCommits();
-    } else if (filters.selectedRepo) {
+      return;
+    }
+
+    if (filters.selectedRepo) {
       fetchCommits(filters.selectedRepo, filters.selectedBranch);
     }
   };
 
-  // Determinar se está carregando
   const isCurrentlyLoading = filters.selectedRepo === 'all' ? loadingAllRepos : loading;
 
-  // REPLICAR: Lógica do Dashboard que funciona
   const statsForDisplay = useMemo(() => {
-    // Usar mesma lógica do useDashboardData.ts que funciona
     const totalCommits = currentCommits.length;
     const filteredCommits = totalFilteredCount;
     const displayCommits = limitedCommitsForList.length;
@@ -249,48 +635,14 @@ const CommitHistory: React.FC = () => {
     };
   }, [currentCommits.length, totalFilteredCount, limitedCommitsForList.length, analytics.totalCommits]);
 
-  // Função para renderizar os controles de visualização
-  const renderViewControls = () => (
-    <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg p-1 border border-slate-700">
-      <button
-        onClick={() => setViewMode('list')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-          viewMode === 'list'
-            ? 'bg-blue-600 text-white shadow-sm'
-            : 'text-slate-400 hover:text-white hover:bg-slate-700'
-        }`}
-      >
-        <List className="w-4 h-4" />
-        Lista
-      </button>
-      <button
-        onClick={() => setViewMode('timeline')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-          viewMode === 'timeline'
-            ? 'bg-blue-600 text-white shadow-sm'
-            : 'text-slate-400 hover:text-white hover:bg-slate-700'
-        }`}
-      >
-        <Clock className="w-4 h-4" />
-        Timeline
-      </button>
-      <button
-        onClick={() => setViewMode('analytics')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-          viewMode === 'analytics'
-            ? 'bg-blue-600 text-white shadow-sm'
-            : 'text-slate-400 hover:text-white hover:bg-slate-700'
-        }`}
-      >
-        <BarChart3 className="w-4 h-4" />
-        Analytics
-      </button>
-    </div>
-  );
+  const hasCollectedCommits = currentCommits.length > 0;
+  const canShowHeaderStats = statsForDisplay.total > 0;
+  const canShowViewControls = totalFilteredCount > 0;
+  const shouldShowAllReposNotice = filters.selectedRepo === 'all';
+  const shouldShowDetachedAnalytics = showAnalytics && analytics.totalCommits > 0 && viewMode !== 'analytics';
 
-  const renderContent = () => (
+  return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header Principal - REPLICANDO LÓGICA DO DASHBOARD */}
       <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex-1">
@@ -301,318 +653,68 @@ const CommitHistory: React.FC = () => {
             <p className="text-slate-400 text-lg mb-4">
               Análise de commits reais coletados via API GitHub
             </p>
-            
-            {/* Stats REPLICANDO STATSGRID QUE FUNCIONA */}
-            {statsForDisplay.total > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                {/* Commits Totais Coletados - IGUAL AO DASHBOARD */}
-                <div className="bg-green-600/10 border border-green-500/20 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-slate-400 text-sm font-medium mb-1">Commits Coletados</p>
-                      <p className="text-2xl font-bold text-white">{statsForDisplay.total.toLocaleString()}</p>
-                      <div className="flex items-center space-x-1 text-green-400">
-                        <GitCommit className="w-3 h-3" />
-                        <span className="text-xs font-medium">API GitHub Real</span>
-                      </div>
-                      <div className="mt-1">
-                        <div className="flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3 text-green-300" />
-                          <span className="text-xs text-green-300">Fonte: {statsForDisplay.source}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="p-2 bg-gradient-to-r from-green-500 to-green-600 rounded-lg">
-                      <GitCommit className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Commits Filtrados */}
-                <div className="bg-blue-600/10 border border-blue-500/20 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-slate-400 text-sm font-medium mb-1">Pós-Filtros</p>
-                      <p className="text-2xl font-bold text-white">{statsForDisplay.filtered.toLocaleString()}</p>
-                      <div className="flex items-center space-x-1 text-blue-400">
-                        <span className="text-xs font-medium">Filtrados</span>
-                      </div>
-                    </div>
-                    <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg">
-                      <Activity className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Analytics */}
-                <div className="bg-purple-600/10 border border-purple-500/20 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-slate-400 text-sm font-medium mb-1">Analytics</p>
-                      <p className="text-2xl font-bold text-white">{statsForDisplay.analytics.toLocaleString()}</p>
-                      <div className="flex items-center space-x-1 text-purple-400">
-                        <span className="text-xs font-medium">Processados</span>
-                      </div>
-                    </div>
-                    <div className="p-2 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg">
-                      <BarChart3 className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Lista Exibida */}
-                <div className="bg-orange-600/10 border border-orange-500/20 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-slate-400 text-sm font-medium mb-1">Lista</p>
-                      <p className="text-2xl font-bold text-white">{statsForDisplay.displayed}</p>
-                      <div className="flex items-center space-x-1 text-orange-400">
-                        <span className="text-xs font-medium">Top exibidos</span>
-                      </div>
-                    </div>
-                    <div className="p-2 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg">
-                      <List className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            {canShowHeaderStats && <CommitStatsGrid statsForDisplay={statsForDisplay} />}
           </div>
-          
-          {/* Controles de Visualização */}
-          {totalFilteredCount > 0 && (
+
+          {canShowViewControls && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-400 mr-2">Visualizar como:</span>
-              {renderViewControls()}
+              <ViewControls viewMode={viewMode} onViewModeChange={setViewMode} />
             </div>
           )}
         </div>
-        
-        {/* Debug Info - IGUAL AO STATSGRID */}
-        {statsForDisplay.total > 0 && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
-              <h4 className="text-slate-300 font-medium mb-2 flex items-center gap-2">
-                <Database className="w-4 h-4" />
-                Debug Info
-              </h4>
-              <div className="text-xs text-slate-400 space-y-1">
-                <div className="flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" />
-                  <span>Fonte: {statsForDisplay.source}</span>
-                </div>
-                <div>Total coletado: {statsForDisplay.total}</div>
-                <div>Filtrados: {statsForDisplay.filtered}</div>
-                <div>Exibidos: {statsForDisplay.displayed}</div>
-                <div>Analytics: {statsForDisplay.analytics}</div>
-              </div>
-            </div>
 
-            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
-              <h4 className="text-slate-300 font-medium mb-2 flex items-center gap-2">
-                <RefreshCw className="w-4 h-4" />
-                Status da Busca
-              </h4>
-              <div className="text-xs text-slate-400 space-y-1">
-                <div>Repositórios: {repositories.length}</div>
-                <div>Selecionado: {filters.selectedRepo || 'Nenhum'}</div>
-                <div>Branch: {filters.selectedBranch}</div>
-                <div>Carregando: {isCurrentlyLoading ? 'Sim' : 'Não'}</div>
-              </div>
-            </div>
-
-            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/50">
-              <h4 className="text-slate-300 font-medium mb-2 flex items-center gap-2">
-                <Activity className="w-4 h-4" />
-                Performance
-              </h4>
-              <div className="text-xs text-slate-400 space-y-1">
-                <div>Filtros ativos: {isFiltered ? 'Sim' : 'Não'}</div>
-                <div>Modo visualização: {viewMode}</div>
-                <div>Analytics ativo: {showAnalytics ? 'Sim' : 'Não'}</div>
-                <div>Autores únicos: {uniqueAuthors.length}</div>
-              </div>
-            </div>
-          </div>
+        {canShowHeaderStats && (
+          <DebugPanels
+            statsForDisplay={statsForDisplay}
+            repositoriesLength={repositories.length}
+            selectedRepo={filters.selectedRepo}
+            selectedBranch={filters.selectedBranch}
+            isCurrentlyLoading={isCurrentlyLoading}
+            isFiltered={isFiltered}
+            viewMode={viewMode}
+            showAnalytics={showAnalytics}
+            uniqueAuthorsLength={uniqueAuthors.length}
+          />
         )}
 
-        {/* Info sobre busca completa */}
-        {filters.selectedRepo === 'all' && (
-          <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
-              <div className="text-sm">
-                <p className="text-blue-400 font-medium mb-1">Busca Completa</p>
-                <p className="text-slate-300 leading-relaxed">
-                  Analise com facilidade<strong> todos os repositórios</strong> em um só lugar. 
-                  Coleta de <strong>TODOS os {repositories.length} repositórios</strong> via API real.
-                </p>
-                {allReposCommits.length > 0 && (
-                  <div className="mt-3 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-400" />
-                      <span className="text-green-400 font-medium">
-                        {allReposCommits.length.toLocaleString()} commits coletados (REAL)
-                      </span>
-                    </div>
-                    {loadingAllRepos && (
-                      <div className="bg-slate-700/30 rounded-full h-2 mt-2">
-                        <div className="bg-blue-500 h-2 rounded-full animate-pulse w-full" />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+        {shouldShowAllReposNotice && (
+          <AllRepositoriesNotice
+            repositoriesLength={repositories.length}
+            allReposCommitsLength={allReposCommits.length}
+            loadingAllRepos={loadingAllRepos}
+          />
         )}
       </div>
 
-      {/* Seção de Configuração */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Seleção de Repositório */}
-        <div className="lg:col-span-2 bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center gap-3 mb-4">
-            <GitBranch className="w-5 h-5 text-blue-400" />
-            <h3 className="text-lg font-semibold text-white">Configuração da Fonte</h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Repository Selection */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">
-                Repositório
-              </label>
-              <select
-                value={filters.selectedRepo}
-                onChange={(e) => handleRepoChange(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              >
-                <option value="">Selecione um repositório</option>
-                <option value="all">Todos os repositórios ({repositories.length})</option>
-                {repositories.map(repo => (
-                  <option key={repo.id} value={repo.full_name}>
-                    {repo.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <SourceConfiguration
+          repositories={repositories}
+          selectedRepo={filters.selectedRepo}
+          selectedBranch={filters.selectedBranch}
+          isCurrentlyLoading={isCurrentlyLoading}
+          allReposCommitsLength={allReposCommits.length}
+          onRepoChange={handleRepoChange}
+          onBranchChange={handleBranchChange}
+          onRefresh={handleRefresh}
+        />
 
-            {/* Branch Selection */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">
-                Branch
-              </label>
-              <select
-                value={filters.selectedBranch}
-                onChange={(e) => handleBranchChange(e.target.value)}
-                disabled={!filters.selectedRepo || filters.selectedRepo === 'all'}
-                className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              >
-                <option value="main">main</option>
-                <option value="master">master</option>
-                <option value="develop">develop</option>
-                <option value="dev">dev</option>
-              </select>
-            </div>
-
-            {/* Action Button */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">
-                Ação
-              </label>
-              <button
-                onClick={handleRefresh}
-                disabled={!filters.selectedRepo || isCurrentlyLoading}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {isCurrentlyLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Carregando...</span>
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Buscar</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Status Info */}
-          {filters.selectedRepo && (
-            <div className="mt-4 p-3 bg-slate-700/20 rounded-lg border border-slate-600/50">
-              <div className="flex items-center gap-2 text-sm">
-                <div className={`w-2 h-2 rounded-full ${filters.selectedRepo === 'all' ? 'bg-purple-500' : 'bg-blue-500'}`} />
-                <span className="text-slate-300">
-                  {filters.selectedRepo === 'all' 
-                    ? `Múltiplos repositórios • ${allReposCommits.length} commits coletados`
-                    : `${filters.selectedRepo} • Branch: ${filters.selectedBranch}`
-                  }
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Ações Rápidas */}
-        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center gap-3 mb-4">
-            <BarChart3 className="w-5 h-5 text-purple-400" />
-            <h3 className="text-lg font-semibold text-white">Controles</h3>
-          </div>
-          
-          <div className="space-y-3">
-            <button
-              onClick={() => setShowAnalytics(!showAnalytics)}
-              className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-                showAnalytics 
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                  : 'bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              {showAnalytics ? 'Ocultar Analytics' : 'Mostrar Analytics'}
-            </button>
-
-            {isFiltered && (
-              <button
-                onClick={resetFilters}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700/50 hover:bg-red-600/20 text-slate-300 hover:text-red-400 rounded-lg font-medium transition-all duration-200 border border-slate-600 hover:border-red-500/50"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Limpar Filtros
-              </button>
-            )}
-          </div>
-
-          {/* Info Helper */}
-          <div className="mt-4 p-3 bg-slate-700/20 rounded-lg">
-            <h4 className="text-xs font-medium text-slate-300 mb-2 flex items-center gap-1">
-              <Activity className="w-3 h-3" />
-              Filtros Avançados
-            </h4>
-            <ul className="text-xs text-slate-400 space-y-1">
-              <li>• Filtros de segundos até anos</li>
-              <li>• Lista limitada a 10 commits</li>
-              <li>• Analytics usa todos os dados filtrados</li>
-              <li>• Ctrl+K para busca rápida</li>
-            </ul>
-          </div>
-        </div>
+        <QuickControls
+          showAnalytics={showAnalytics}
+          isFiltered={isFiltered}
+          onToggleAnalytics={() => setShowAnalytics(!showAnalytics)}
+          onResetFilters={resetFilters}
+        />
       </div>
 
-      {/* Nota sobre Metodologia - ATUALIZADA */}
-      {currentCommits.length > 0 && (
+      {hasCollectedCommits && (
         <div className="bg-green-600/10 border border-green-500/20 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <BarChart3 className="w-5 h-5 text-green-400 mt-0.5" />
             <div>
               <h4 className="text-green-400 font-medium mb-1">Coleta Completa Realizada</h4>
               <p className="text-green-300/80 text-sm">
-                <strong>{currentCommits.length.toLocaleString()} commits</strong> foram coletados do histórico completo. 
+                <strong>{currentCommits.length.toLocaleString()} commits</strong> foram coletados do histórico completo.
                 Todos os filtros são aplicados sobre este conjunto total para máxima precisão.
               </p>
               <div className="mt-2 grid grid-cols-2 gap-4 text-xs">
@@ -630,8 +732,7 @@ const CommitHistory: React.FC = () => {
         </div>
       )}
 
-      {/* Filtros Avançados */}
-      {currentCommits.length > 0 && (
+      {hasCollectedCommits && (
         <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50">
           <CommitFilters
             filters={filters}
@@ -646,8 +747,7 @@ const CommitHistory: React.FC = () => {
         </div>
       )}
 
-      {/* Analytics Dashboard Separado */}
-      {showAnalytics && analytics.totalCommits > 0 && viewMode !== 'analytics' && (
+      {shouldShowDetachedAnalytics && (
         <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-white flex items-center gap-2">
@@ -670,7 +770,6 @@ const CommitHistory: React.FC = () => {
         </div>
       )}
 
-      {/* Conteúdo Principal */}
       <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50">
         <CommitMainContent
           isCurrentlyLoading={isCurrentlyLoading}
@@ -690,15 +789,14 @@ const CommitHistory: React.FC = () => {
         />
       </div>
 
-      {/* Nota final sobre dados coletados - SIMPLIFICADA */}
-      {currentCommits.length > 0 && (
+      {hasCollectedCommits && (
         <div className="bg-green-600/10 border border-green-500/20 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
             <div>
               <h4 className="text-green-400 font-medium mb-1">Histórico Completo Coletado</h4>
               <p className="text-green-300/80 text-sm">
-                <strong>{currentCommits.length.toLocaleString()} commits</strong> foram coletados do histórico completo disponível. 
+                <strong>{currentCommits.length.toLocaleString()} commits</strong> foram coletados do histórico completo disponível.
                 Análises e filtros processam 100% destes dados.
               </p>
             </div>
@@ -707,8 +805,6 @@ const CommitHistory: React.FC = () => {
       )}
     </div>
   );
-
-  return renderContent();
 };
 
 export default CommitHistory;

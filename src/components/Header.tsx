@@ -30,6 +30,26 @@ interface NotificationsDropdownProps {
   onClearAllNotifications: () => void;
 }
 
+interface SearchBarProps {
+  darkMode: boolean;
+}
+
+interface NotificationsMenuProps {
+  darkMode: boolean;
+  showNotifications: boolean;
+  unreadCount: number;
+  notifications: Notification[];
+  onToggleNotifications: () => void;
+  onMarkNotificationAsRead: (id: string) => void;
+  onClearAllNotifications: () => void;
+}
+
+interface UserProfileButtonProps {
+  darkMode: boolean;
+  onUserProfileClick: () => void;
+  user: NonNullable<ReturnType<typeof useGitHub>['user']>;
+}
+
 const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
   darkMode,
   notifications,
@@ -115,6 +135,88 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
   );
 };
 
+const SearchBar: React.FC<SearchBarProps> = ({ darkMode }) => (
+  <div className="flex-1 max-w-2xl mx-8">
+    <div className="relative">
+      <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
+        darkMode ? 'text-slate-400' : 'text-gray-400'
+      }`} />
+      <input
+        type="text"
+        placeholder="Pesquisar repositórios, commits, usuários... (Ctrl+K)"
+        className={`w-full pl-10 pr-4 py-3 rounded-lg transition-all duration-200 ${
+          darkMode
+            ? 'bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 focus:ring-blue-500'
+            : 'bg-gray-100 border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-500'
+        } focus:outline-none focus:ring-2 focus:border-transparent`}
+      />
+    </div>
+  </div>
+);
+
+const NotificationsMenu: React.FC<NotificationsMenuProps> = ({
+  darkMode,
+  showNotifications,
+  unreadCount,
+  notifications,
+  onToggleNotifications,
+  onMarkNotificationAsRead,
+  onClearAllNotifications,
+}) => (
+  <div className="relative">
+    <button
+      onClick={onToggleNotifications}
+      className={`relative p-2 rounded-lg transition-all duration-200 ${
+        darkMode
+          ? 'text-slate-400 hover:text-white hover:bg-slate-700'
+          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+      }`}
+      title="Notificações"
+      aria-label={`Notificações${unreadCount > 0 ? ` (${unreadCount} não lidas)` : ''}`}
+    >
+      <Bell className="w-5 h-5" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs flex items-center justify-center text-white">
+          {unreadCount}
+        </span>
+      )}
+    </button>
+
+    {showNotifications && (
+      <NotificationsDropdown
+        darkMode={darkMode}
+        notifications={notifications}
+        onMarkNotificationAsRead={onMarkNotificationAsRead}
+        onClearAllNotifications={onClearAllNotifications}
+      />
+    )}
+  </div>
+);
+
+const UserProfileButton: React.FC<UserProfileButtonProps> = ({ darkMode, onUserProfileClick, user }) => (
+  <div className="flex items-center space-x-3 pl-4 border-l border-slate-600">
+    <button
+      onClick={onUserProfileClick}
+      className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+      aria-label="Ver perfil"
+    >
+      <img
+        src={user.avatar_url}
+        alt={user.name || user.login}
+        className="w-10 h-10 rounded-full border-2 border-slate-600 hover:border-blue-500 transition-all duration-200 cursor-pointer"
+      />
+      <div className="hidden md:block text-left">
+        <p className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          {user.name || user.login}
+        </p>
+        <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>
+          @{user.login}
+        </p>
+      </div>
+    </button>
+  </div>
+);
+
 const Header: React.FC<HeaderProps> = ({
   darkMode,
   onToggleDarkMode,
@@ -158,23 +260,7 @@ const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Enhanced Search Bar */}
-          <div className="flex-1 max-w-2xl mx-8">
-            <div className="relative">
-              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-                darkMode ? 'text-slate-400' : 'text-gray-400'
-              }`} />
-              <input
-                type="text"
-                placeholder="Pesquisar repositórios, commits, usuários... (Ctrl+K)"
-                className={`w-full pl-10 pr-4 py-3 rounded-lg transition-all duration-200 ${
-                  darkMode 
-                    ? 'bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 focus:ring-blue-500' 
-                    : 'bg-gray-100 border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-500'
-                } focus:outline-none focus:ring-2 focus:border-transparent`}
-              />
-            </div>
-          </div>
+          <SearchBar darkMode={darkMode} />
 
           {/* Right Menu */}
           <div className="flex items-center space-x-4">
@@ -207,57 +293,18 @@ const Header: React.FC<HeaderProps> = ({
               {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
 
-            {/* Notifications */}
-            <div className="relative">
-              <button
-                onClick={onToggleNotifications}
-                className={`relative p-2 rounded-lg transition-all duration-200 ${iconButtonClass}`}
-                title="Notificações"
-                aria-label={`Notificações${unreadCount > 0 ? ` (${unreadCount} não lidas)` : ''}`}
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs flex items-center justify-center text-white">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Notifications Dropdown */}
-              {showNotifications && (
-                <NotificationsDropdown
-                  darkMode={darkMode}
-                  notifications={notifications}
-                  onMarkNotificationAsRead={onMarkNotificationAsRead}
-                  onClearAllNotifications={onClearAllNotifications}
-                />
-              )}
-            </div>
+            <NotificationsMenu
+              darkMode={darkMode}
+              showNotifications={showNotifications}
+              unreadCount={unreadCount}
+              notifications={notifications}
+              onToggleNotifications={onToggleNotifications}
+              onMarkNotificationAsRead={onMarkNotificationAsRead}
+              onClearAllNotifications={onClearAllNotifications}
+            />
 
             {/* User Avatar */}
-            {user && (
-              <div className="flex items-center space-x-3 pl-4 border-l border-slate-600">
-                <button
-                  onClick={onUserProfileClick}
-                  className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
-                  aria-label="Ver perfil"
-                >
-                  <img
-                    src={user.avatar_url}
-                    alt={user.name || user.login}
-                    className="w-10 h-10 rounded-full border-2 border-slate-600 hover:border-blue-500 transition-all duration-200 cursor-pointer"
-                  />
-                  <div className="hidden md:block text-left">
-                    <p className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {user.name || user.login}
-                    </p>
-                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>
-                      @{user.login}
-                    </p>
-                  </div>
-                </button>
-              </div>
-            )}
+            {user && <UserProfileButton darkMode={darkMode} onUserProfileClick={onUserProfileClick} user={user} />}
           </div>
         </div>
       </div>
